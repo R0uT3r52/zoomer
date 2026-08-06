@@ -1,21 +1,24 @@
-cmake_minimum_required(VERSION 3.5)
-project(zoomer)
+cmake_minimum_required(VERSION 3.10)
+project(zoomer LANGUAGES CXX)
 
-# Create an option to switch between a system sdl library and a vendored SDL library
-option(MYGAME_VENDORED "Use vendored libraries" OFF)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if(MYGAME_VENDORED)
-    # This assumes you have added SDL as a submodule in vendored/SDL
-    add_subdirectory(vendored/SDL EXCLUDE_FROM_ALL)
-else()
-    # 1. Look for a SDL3 package,
-    # 2. look for the SDL3-shared component, and
-    # 3. fail if the shared component cannot be found.
-    find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3-shared)
-endif()
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SDL3 REQUIRED sdl3)
+pkg_check_modules(SDL3_IMAGE REQUIRED sdl3-image)
+pkg_check_modules(X11 REQUIRED x11)
 
-# Create your game executable target as usual
 add_executable(zoomer src/main.cpp)
 
-# Link to the actual SDL3 library.
-target_link_libraries(zoomer PRIVATE SDL3::SDL3)
+target_include_directories(zoomer PRIVATE
+    ${SDL3_INCLUDE_DIRS}
+    ${SDL3_IMAGE_INCLUDE_DIRS}
+    ${X11_INCLUDE_DIRS}
+)
+
+target_link_libraries(zoomer PRIVATE
+    ${SDL3_LIBRARIES}
+    ${SDL3_IMAGE_LIBRARIES}
+    ${X11_LIBRARIES}
+)
