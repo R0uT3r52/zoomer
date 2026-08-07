@@ -1,4 +1,4 @@
-#version 130
+#version 330 core
 out mediump vec4 color;
 in mediump vec2 texcoord;
 uniform sampler2D tex;

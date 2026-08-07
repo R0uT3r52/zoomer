@@ -1,7 +1,9 @@
+#include <SDL3/SDL_error.h>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_surface.h>
 #include <SDL3/SDL_video.h>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -15,6 +17,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <GL/glew.h>
+#include <GL/gl.h>
 
 enum class Session { X11, Wayland, Unknown };
 
@@ -174,13 +177,43 @@ SDL_Texture* texture = nullptr;
 int img_w = 0;
 int img_h = 0;
 
+unsigned int program;
+unsigned int VAO;
+unsigned int VBO;
+
+float vertices[] = {
+    // Coordinates          // Colors (RGB)
+    -0.5f, -0.5f, 0.0f,     1.0f, 0.0f, 1.0f,
+     0.5f, -0.5f, 0.0f,     1.0f, 0.0f, 1.0f,
+     0.0f,  0.5f, 0.0f,     1.0f, 0.0f, 1.0f
+};
+
+const char *VERTSHADER =
+    "#version 330 core\n"
+    "layout (location=0) in vec3 vertexPos;\n"
+    "layout (location=1) in vec3 vertexCol;\n"
+    "out vec3 col;\n"
+    "void main() {\n"
+    "gl_Position = vec4(vertexPos.xyz, 1.0);\n"
+    "col = vertexCol;\n}"
+;
+const char *FRAGSHADER =
+    "#version 330 core\n"
+    "in vec3 col;\n"
+    "out vec4 fragCol;\n"
+    "void main() {\n"
+    "fragCol = vec4(col, 1.0f);\n}"
+;
+
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("ERROR: Could not init SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
 
     SDL_Surface* surf = capture_screenshot();
@@ -192,11 +225,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     img_w = surf->w;
     img_h = surf->h;
 
-    if (!SDL_CreateWindowAndRenderer(
-            "zoomer", img_w, img_h, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL, &window, &renderer)) {
-        SDL_Log("ERROR: Could not create window and renderer: %s",
-                SDL_GetError());
-        SDL_DestroySurface(surf);
+    window = SDL_CreateWindow("zoomer", img_w, img_h, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
+    if (!window) {
+        SDL_Log("ERROR: Could not create a window: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
@@ -209,6 +240,65 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     }
 
     SDL_Surface *converted_surf = SDL_ConvertSurface(surf, SDL_PIXELFORMAT_RGBA8888);
+
+    // unsigned int VAO;
+    __glewGenVertexArrays(1, &VAO);
+    __glewBindVertexArray(VAO);
+
+    // unsigned int VBO;
+    __glewGenBuffers(1, &VBO);
+    __glewBindBuffer(GL_ARRAY_BUFFER, VBO);
+    __glewBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    //position
+    __glewVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (GLvoid*)(0));
+    __glewEnableVertexAttribArray(0);
+
+    //color
+    __glewVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (GLvoid*)(3*sizeof(float)));
+    __glewEnableVertexAttribArray(1);
+
+    unsigned int vertex_shader = __glewCreateShader(GL_VERTEX_SHADER);
+    int success;
+    char log[512];
+
+    __glewShaderSource(vertex_shader, 1, &VERTSHADER, NULL);
+    __glewCompileShader(vertex_shader);
+
+    __glewGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        __glewGetShaderInfoLog(vertex_shader, 512, NULL, log);
+        SDL_Log("ERROR: Vertex Shader compilation error: %s", log);
+        return SDL_APP_FAILURE;
+    }
+
+    unsigned int fragment_shader = __glewCreateShader(GL_FRAGMENT_SHADER);
+
+    __glewShaderSource(fragment_shader, 1, &FRAGSHADER, NULL);
+    __glewCompileShader(fragment_shader);
+
+    __glewGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        __glewGetShaderInfoLog(fragment_shader, 512, NULL, log);
+        SDL_Log("ERROR: Fragment Shader compilation error: %s", log);
+        return SDL_APP_FAILURE;
+    }
+
+    program = __glewCreateProgram();
+
+    __glewAttachShader(program, vertex_shader);
+    __glewAttachShader(program, fragment_shader);
+    __glewLinkProgram(program);
+
+    __glewGetProgramiv(program, GL_LINK_STATUS, &success);
+
+    if (!success){
+        __glewGetProgramInfoLog(program, 512, NULL, log);
+        SDL_Log("ERROR: Shader Program compilation error: %s", log);
+        return SDL_APP_FAILURE;
+    }
+
+
 
     // GLuint *textr;
 
@@ -230,15 +320,6 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         return SDL_APP_FAILURE;
     }
 
-    texture = SDL_CreateTextureFromSurface(renderer, surf);
-    SDL_DestroySurface(surf);
-    SDL_DestroySurface(converted_surf);
-
-    if (!texture) {
-        SDL_Log("ERROR: Could not create texture: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
-
     SDL_Log("Screenshot loaded successfully into SDL3 window (%dx%d)", img_w,
             img_h);
     return SDL_APP_CONTINUE;
@@ -257,8 +338,14 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
 
-    glClearColor(1.0f, 0.5f, 0.5f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.5f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    // __glewUseProgram(program);
+    glUseProgram(program);
+    __glewBindVertexArray(VAO);
+    // __glewDrawArraysEXT(GL_TRIANGLES, 0, 3); // the same as glDrawArrays()
+    glDrawArrays(GL_TRIANGLES, 0, 3);
 
     SDL_GL_SwapWindow(window);
 
