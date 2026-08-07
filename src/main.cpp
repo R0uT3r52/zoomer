@@ -16,8 +16,7 @@
 #include <SDL3_image/SDL_image.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <GL/glew.h>
-#include <GL/gl.h>
+#include <glad/glad.h>
 
 enum class Session { X11, Wayland, Unknown };
 
@@ -233,67 +232,72 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     SDL_GLContext gl_ctx = SDL_GL_CreateContext(window);
 
-    GLenum err = glewInit();
-    if (GLEW_OK != err) {
-        SDL_Log("ERROR: glewInit exited with error: %s", glewGetErrorString(err));
+    if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)){
+        SDL_Log("ERROR: Failed to init glad");
         return SDL_APP_FAILURE;
     }
+
+    // GLenum err = glewInit();
+    // if (GLEW_OK != err) {
+    //     SDL_Log("ERROR: glewInit exited with error: %s", glewGetErrorString(err));
+    //     return SDL_APP_FAILURE;
+    // }
 
     SDL_Surface *converted_surf = SDL_ConvertSurface(surf, SDL_PIXELFORMAT_RGBA8888);
 
     // unsigned int VAO;
-    __glewGenVertexArrays(1, &VAO);
-    __glewBindVertexArray(VAO);
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
 
     // unsigned int VBO;
-    __glewGenBuffers(1, &VBO);
-    __glewBindBuffer(GL_ARRAY_BUFFER, VBO);
-    __glewBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     //position
-    __glewVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (GLvoid*)(0));
-    __glewEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (GLvoid*)(0));
+    glEnableVertexAttribArray(0);
 
     //color
-    __glewVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (GLvoid*)(3*sizeof(float)));
-    __glewEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (GLvoid*)(3*sizeof(float)));
+    glEnableVertexAttribArray(1);
 
-    unsigned int vertex_shader = __glewCreateShader(GL_VERTEX_SHADER);
+    unsigned int vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     int success;
     char log[512];
 
-    __glewShaderSource(vertex_shader, 1, &VERTSHADER, NULL);
-    __glewCompileShader(vertex_shader);
+    glShaderSource(vertex_shader, 1, &VERTSHADER, NULL);
+    glCompileShader(vertex_shader);
 
-    __glewGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
+    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
     if (!success) {
-        __glewGetShaderInfoLog(vertex_shader, 512, NULL, log);
+        glGetShaderInfoLog(vertex_shader, 512, NULL, log);
         SDL_Log("ERROR: Vertex Shader compilation error: %s", log);
         return SDL_APP_FAILURE;
     }
 
-    unsigned int fragment_shader = __glewCreateShader(GL_FRAGMENT_SHADER);
+    unsigned int fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
 
-    __glewShaderSource(fragment_shader, 1, &FRAGSHADER, NULL);
-    __glewCompileShader(fragment_shader);
+    glShaderSource(fragment_shader, 1, &FRAGSHADER, NULL);
+    glCompileShader(fragment_shader);
 
-    __glewGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
+    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
     if (!success) {
-        __glewGetShaderInfoLog(fragment_shader, 512, NULL, log);
+        glGetShaderInfoLog(fragment_shader, 512, NULL, log);
         SDL_Log("ERROR: Fragment Shader compilation error: %s", log);
         return SDL_APP_FAILURE;
     }
 
-    program = __glewCreateProgram();
+    program = glCreateProgram();
 
-    __glewAttachShader(program, vertex_shader);
-    __glewAttachShader(program, fragment_shader);
-    __glewLinkProgram(program);
+    glAttachShader(program, vertex_shader);
+    glAttachShader(program, fragment_shader);
+    glLinkProgram(program);
 
-    __glewGetProgramiv(program, GL_LINK_STATUS, &success);
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
 
     if (!success){
-        __glewGetProgramInfoLog(program, 512, NULL, log);
+        glGetProgramInfoLog(program, 512, NULL, log);
         SDL_Log("ERROR: Shader Program compilation error: %s", log);
         return SDL_APP_FAILURE;
     }
@@ -341,10 +345,10 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     glClearColor(0.0f, 0.0f, 0.5f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // __glewUseProgram(program);
+    // glUseProgram(program);
     glUseProgram(program);
-    __glewBindVertexArray(VAO);
-    // __glewDrawArraysEXT(GL_TRIANGLES, 0, 3); // the same as glDrawArrays()
+    glBindVertexArray(VAO);
+    // glDrawArraysEXT(GL_TRIANGLES, 0, 3); // the same as glDrawArrays()
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     SDL_GL_SwapWindow(window);
