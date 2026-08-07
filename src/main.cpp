@@ -1,3 +1,7 @@
+#include <SDL3/SDL_init.h>
+#include <SDL3/SDL_log.h>
+#include <SDL3/SDL_surface.h>
+#include <SDL3/SDL_video.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -10,6 +14,7 @@
 #include <SDL3_image/SDL_image.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <GL/glew.h>
 
 enum class Session { X11, Wayland, Unknown };
 
@@ -175,6 +180,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         return SDL_APP_FAILURE;
     }
 
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+
+
     SDL_Surface* surf = capture_screenshot();
     if (!surf) {
         SDL_Log("ERROR: Could not capture screenshot on X11 or Wayland");
@@ -185,15 +193,46 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     img_h = surf->h;
 
     if (!SDL_CreateWindowAndRenderer(
-            "zoomer", img_w, img_h, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
+            "zoomer", img_w, img_h, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL, &window, &renderer)) {
         SDL_Log("ERROR: Could not create window and renderer: %s",
                 SDL_GetError());
         SDL_DestroySurface(surf);
         return SDL_APP_FAILURE;
     }
 
+    SDL_GLContext gl_ctx = SDL_GL_CreateContext(window);
+
+    GLenum err = glewInit();
+    if (GLEW_OK != err) {
+        SDL_Log("ERROR: glewInit exited with error: %s", glewGetErrorString(err));
+        return SDL_APP_FAILURE;
+    }
+
+    SDL_Surface *converted_surf = SDL_ConvertSurface(surf, SDL_PIXELFORMAT_RGBA8888);
+
+    // GLuint *textr;
+
+    // glGenTextures(1, textr);
+    // glBindTexture(GL_TEXTURE_2D, *textr);
+
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+
+    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, img_w, img_h, 0, GL_RGBA8, GL_UNSIGNED_BYTE, converted_surf->pixels);
+
+    if (!SDL_GL_MakeCurrent(window, gl_ctx)) {
+        SDL_Log("ERROR: GL_MakeCurrent exited with error: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
     texture = SDL_CreateTextureFromSurface(renderer, surf);
     SDL_DestroySurface(surf);
+    SDL_DestroySurface(converted_surf);
 
     if (!texture) {
         SDL_Log("ERROR: Could not create texture: %s", SDL_GetError());
@@ -217,14 +256,20 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 }
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
 
-    if (texture) {
-        SDL_RenderTexture(renderer, texture, nullptr, nullptr);
-    }
+    glClearColor(1.0f, 0.5f, 0.5f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
 
-    SDL_RenderPresent(renderer);
+    SDL_GL_SwapWindow(window);
+
+    // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    // SDL_RenderClear(renderer);
+
+    // if (texture) {
+    //     SDL_RenderTexture(renderer, texture, nullptr, nullptr);
+    // }
+
+    // SDL_RenderPresent(renderer);
     return SDL_APP_CONTINUE;
 }
 
