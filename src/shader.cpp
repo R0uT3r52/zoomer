@@ -34,6 +34,9 @@ GLuint load_shader_program(const char* vert_shader, const char* frag_shader,
     glAttachShader(program, fragment_shader);
     glLinkProgram(program);
 
+    glDeleteShader(vertex_shader);
+    glDeleteShader(fragment_shader);
+
     glGetProgramiv(program, GL_LINK_STATUS, &success);
     if (!success) {
         glGetProgramInfoLog(program, 512, nullptr, log);
