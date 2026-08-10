@@ -1,3 +1,8 @@
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_keycode.h>
+#include <SDL3/SDL_mouse.h>
+#include <SDL3/SDL_oldnames.h>
+
 #define SDL_MAIN_USE_CALLBACKS 1
 
 #include <SDL3/SDL_error.h>
@@ -8,33 +13,72 @@
 
 #include "capture.hpp"
 #include "shader.hpp"
+#include "utils.hpp"
 
 struct app {
     SDL_Window* window;
     int img_w, img_h;
     unsigned int program, VAO, VBO, texture;
+    float dt;
+    camera cam;
+    cursor curs;
+
+    // OpenGL uniform IDs
+    int cameraPosGLLocation;
+    int cameraScaleGLLocation;
+    int windowSizeGLLocation;
+    int screenshotSizeGLLocation;
+    int cursorPosGLLocation;
 };
 
 float vertices[] = {
     // Coordinates          // Colors (RGB)       // Texture
-    -0.8f,  0.8f, 0.0f,     0.0f, 0.0f, 0.0f,     0.0f, 0.0f,
-    -0.8f, -0.8f, 0.0f,     0.0f, 0.0f, 0.0f,     0.0f, 1.0f,
-     0.8f,  0.8f, 0.0f,     0.0f, 0.0f, 0.0f,     1.0f, 0.0f,
+    -1.0f,  1.0f, 0.0f,     0.0f, 0.0f, 0.0f,     0.0f, 0.0f,
+    -1.0f, -1.0f, 0.0f,     0.0f, 0.0f, 0.0f,     0.0f, 1.0f,
+     1.0f,  1.0f, 0.0f,     0.0f, 0.0f, 0.0f,     1.0f, 0.0f,
 
-    -0.8f, -0.8f, 0.0f,     0.0f, 0.0f, 0.0f,     0.0f, 1.0f,
-     0.8f,  0.8f, 0.0f,     0.0f, 0.0f, 0.0f,     1.0f, 0.0f,
-     0.8f, -0.8f, 0.0f,     0.0f, 0.0f, 0.0f,     1.0f, 1.0f,
+    -1.0f, -1.0f, 0.0f,     0.0f, 0.0f, 0.0f,     0.0f, 1.0f,
+     1.0f,  1.0f, 0.0f,     0.0f, 0.0f, 0.0f,     1.0f, 0.0f,
+     1.0f, -1.0f, 0.0f,     0.0f, 0.0f, 0.0f,     1.0f, 1.0f,
 };
+
+// const char* VERTSHADER =
+//     "#version 330 core\n"
+//     "layout (location=0) in vec3 vertexPos;\n"
+//     "layout (location=1) in vec3 vertexCol;\n"
+//     "layout (location=2) in vec2 texPos;\n"
+//     "out vec3 col;\n"
+//     "out vec2 texCord;\n"
+//     "void main() {\n"
+//     "gl_Position = vec4(vertexPos.xyz, 1.0);\n"
+//     "texCord = texPos;\n"
+//     "col = vertexCol;\n}";
+// const char* FRAGSHADER =
+//     "#version 330 core\n"
+//     "in vec3 col;\n"
+//     "in vec2 texCord;\n"
+//     "uniform sampler2D tex;\n"
+//     "out vec4 fragCol;\n"
+//     "void main() {\n"
+//     "fragCol = texture(tex, texCord);\n}"
+// ;
 
 const char* VERTSHADER =
     "#version 330 core\n"
     "layout (location=0) in vec3 vertexPos;\n"
     "layout (location=1) in vec3 vertexCol;\n"
     "layout (location=2) in vec2 texPos;\n"
+    "uniform vec2 cameraPos;\n"
+    "uniform float cameraScale;\n"
+    "uniform vec2 windowSize;\n"
+    "uniform vec2 screenshotSize;\n"
+    "uniform vec2 cursorPos;\n"
     "out vec3 col;\n"
     "out vec2 texCord;\n"
+
     "void main() {\n"
-    "gl_Position = vec4(vertexPos.xyz, 1.0);\n"
+    "vec2 offsetNDC = (cameraPos / windowSize) * 2.0f;\n"
+    "gl_Position = vec4((vertexPos.xy - offsetNDC * vec2(1.0, -1.0)) * cameraScale , vertexPos.z, 1.0);\n"
     "texCord = texPos;\n"
     "col = vertexCol;\n}";
 const char* FRAGSHADER =
@@ -71,7 +115,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     state->window = SDL_CreateWindow(
         "zoomer", state->img_w, state->img_h,
-        SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
+        SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
     if (!state->window) {
         SDL_Log("ERROR: Could not create a window: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -88,6 +132,11 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         SDL_Log("ERROR: Failed to init glad");
         return SDL_APP_FAILURE;
     }
+
+    SDL_DisplayID dID = SDL_GetDisplayForWindow(state->window);
+    const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode(dID);
+
+    state->dt = 1.0/mode->refresh_rate;
 
     // I dont know why, but SDL's ABGR8 = GL_RGBA8
     SDL_Surface* converted_surf =
@@ -128,6 +177,11 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         return SDL_APP_FAILURE;
     }
 
+    state->cameraPosGLLocation = glGetUniformLocation(state->program, "cameraPos");
+    state->cameraScaleGLLocation = glGetUniformLocation(state->program, "cameraScale");
+    state->windowSizeGLLocation = glGetUniformLocation(state->program, "windowSize");
+    state->screenshotSizeGLLocation = glGetUniformLocation(state->program, "screenshotSize");
+    state->cursorPosGLLocation = glGetUniformLocation(state->program, "cursorPos");
 
     glGenTextures(1, &state->texture);
     glBindTexture(GL_TEXTURE_2D, state->texture);
@@ -146,11 +200,15 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     SDL_Log("Screenshot loaded successfully into SDL3 window (%dx%d)",
             state->img_w, state->img_h);
 
+
     *appstate = state;
     return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
+
+    app *state = static_cast<app*>(appstate);
+
     if (event->type == SDL_EVENT_KEY_DOWN &&
         (event->key.key == SDLK_ESCAPE || event->key.key == SDLK_Q)) {
         return SDL_APP_SUCCESS;
@@ -158,16 +216,60 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
     if (event->type == SDL_EVENT_QUIT) {
         return SDL_APP_SUCCESS;
     }
+    if(event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_R) {
+        // Reset state
+        state->cam.Scale = 1.0f;
+        state->cam.dScale = 0.0f;
+        state->cam.Pos = Vec2();
+        state->cam.Vel = Vec2();
+    }
+    if (event->type == SDL_EVENT_MOUSE_WHEEL) {
+        // SDL_Log("LOG: Scroll x: %f, Scroll y: %f", event->wheel.x, event->wheel.y);
+
+        // wheel.y is already handling UP/DOWN with negative/positive value
+        state->cam.dScale += event->wheel.y;
+        state->cam.scalePivot = state->curs.Cur;
+    }
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_LEFT) {
+        state->curs.drag = true;
+    }
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_UP && event->button.button == SDL_BUTTON_LEFT) {
+        state->curs.drag = false;
+    }
+    if (event->type == SDL_EVENT_MOUSE_MOTION) {
+        // SDL_Log("LOG: posX: %f, posY: %f", event->motion.x, event->motion.y);
+        state->curs.Cur = Vec2(event->motion.x, event->motion.y);
+
+        if (state->curs.drag) {
+            Vec2 delta = world(state->cam, state->curs.Prev) - world(state->cam, state->curs.Cur);
+            state->cam.Pos += delta;
+            state->cam.Vel = delta * state->dt;
+        }
+
+        state->curs.Prev = state->curs.Cur;
+    }
+
     return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
     app* state = static_cast<app*>(appstate);
 
+    state->cam.update(state->dt, state->curs, Vec2(state->img_w, state->img_h));
+
     glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     glUseProgram(state->program);
+
+    glUniform2f(state->cameraPosGLLocation, state->cam.Pos.x, state->cam.Pos.y);
+    glUniform1f(state->cameraScaleGLLocation, state->cam.Scale);
+    // window size
+    // TODO: Add separate window size and screenshot size (now its the same)
+    glUniform2f(state->windowSizeGLLocation, state->img_w, state->img_h);
+    glUniform2f(state->screenshotSizeGLLocation, state->img_w, state->img_h);
+    glUniform2f(state->cursorPosGLLocation, state->curs.Cur.x, state->curs.Cur.y);
+
     glBindTexture(GL_TEXTURE_2D, state->texture);
     glBindVertexArray(state->VAO);
 
