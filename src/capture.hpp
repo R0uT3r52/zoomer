@@ -14,6 +14,6 @@
 enum class Session { X11, Wayland, Unknown };
 
 Session detect_session();
-SDL_Surface* capture_x11();
-SDL_Surface* capture_wayland();
-SDL_Surface* capture_screenshot();
+SDL_Surface* capture_x11(int* out_x = nullptr, int* out_y = nullptr);
+SDL_Surface* capture_wayland(int* out_x = nullptr, int* out_y = nullptr);
+SDL_Surface* capture_screenshot(int* out_x = nullptr, int* out_y = nullptr);

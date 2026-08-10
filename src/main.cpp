@@ -2,6 +2,7 @@
 #include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_oldnames.h>
+#include <SDL3/SDL_surface.h>
 
 #define SDL_MAIN_USE_CALLBACKS 1
 
@@ -42,27 +43,6 @@ float vertices[] = {
      1.0f, -1.0f, 0.0f,     0.0f, 0.0f, 0.0f,     1.0f, 1.0f,
 };
 
-// const char* VERTSHADER =
-//     "#version 330 core\n"
-//     "layout (location=0) in vec3 vertexPos;\n"
-//     "layout (location=1) in vec3 vertexCol;\n"
-//     "layout (location=2) in vec2 texPos;\n"
-//     "out vec3 col;\n"
-//     "out vec2 texCord;\n"
-//     "void main() {\n"
-//     "gl_Position = vec4(vertexPos.xyz, 1.0);\n"
-//     "texCord = texPos;\n"
-//     "col = vertexCol;\n}";
-// const char* FRAGSHADER =
-//     "#version 330 core\n"
-//     "in vec3 col;\n"
-//     "in vec2 texCord;\n"
-//     "uniform sampler2D tex;\n"
-//     "out vec4 fragCol;\n"
-//     "void main() {\n"
-//     "fragCol = texture(tex, texCord);\n}"
-// ;
-
 const char* VERTSHADER =
     "#version 330 core\n"
     "layout (location=0) in vec3 vertexPos;\n"
@@ -91,57 +71,7 @@ const char* FRAGSHADER =
     "fragCol = texture(tex, texCord);\n}"
 ;
 
-SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
-        SDL_Log("ERROR: Could not init SDL: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
-
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
-                        SDL_GL_CONTEXT_PROFILE_CORE);
-
-    app* state = new app;
-
-    SDL_Surface* surf = capture_screenshot();
-    if (!surf) {
-        SDL_Log("ERROR: Could not capture screenshot on X11 or Wayland");
-        return SDL_APP_FAILURE;
-    }
-
-    state->img_w = surf->w;
-    state->img_h = surf->h;
-
-    state->window = SDL_CreateWindow(
-        "zoomer", state->img_w, state->img_h,
-        SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
-    if (!state->window) {
-        SDL_Log("ERROR: Could not create a window: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
-
-    SDL_GLContext gl_ctx = SDL_GL_CreateContext(state->window);
-
-    if (!SDL_GL_MakeCurrent(state->window, gl_ctx)) {
-        SDL_Log("ERROR: GL_MakeCurrent exited with error: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
-
-    if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-        SDL_Log("ERROR: Failed to init glad");
-        return SDL_APP_FAILURE;
-    }
-
-    SDL_DisplayID dID = SDL_GetDisplayForWindow(state->window);
-    const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode(dID);
-
-    state->dt = 1.0/mode->refresh_rate;
-
-    // I dont know why, but SDL's ABGR8 = GL_RGBA8
-    SDL_Surface* converted_surf =
-        SDL_ConvertSurface(surf, SDL_PIXELFORMAT_ABGR8888);
-
+int init_opengl_state(app* state) {
     // unsigned int VAO;
     glGenVertexArrays(1, &state->VAO);
     glBindVertexArray(state->VAO);
@@ -174,7 +104,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
             "ERROR: Compiling shaders or linking shader program ended with "
             "error: %s",
             shader_logs);
-        return SDL_APP_FAILURE;
+        return 0;
     }
 
     state->cameraPosGLLocation = glGetUniformLocation(state->program, "cameraPos");
@@ -194,8 +124,73 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     glTexParameteri(GL_TEXTURE_2D,
     GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+    return 1;
+}
+
+
+SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
+    if (!SDL_Init(SDL_INIT_VIDEO)) {
+        SDL_Log("ERROR: Could not init SDL: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
+                        SDL_GL_CONTEXT_PROFILE_CORE);
+
+    app* state = new app;
+
+    int screen_x = 0, screen_y = 0;
+    SDL_Surface* surf = capture_screenshot(&screen_x, &screen_y);
+    if (!surf) {
+        SDL_Log("ERROR: Could not capture screenshot on X11 or Wayland");
+        return SDL_APP_FAILURE;
+    }
+
+    state->img_w = surf->w;
+    state->img_h = surf->h;
+
+    state->window = SDL_CreateWindow(
+        "zoomer", state->img_w, state->img_h,
+        SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
+    if (!state->window) {
+        SDL_Log("ERROR: Could not create a window: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+    
+    SDL_SetWindowPosition(state->window, screen_x, screen_y);
+
+    SDL_GLContext gl_ctx = SDL_GL_CreateContext(state->window);
+
+    if (!SDL_GL_MakeCurrent(state->window, gl_ctx)) {
+        SDL_Log("ERROR: GL_MakeCurrent exited with error: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
+        SDL_Log("ERROR: Failed to init glad");
+        return SDL_APP_FAILURE;
+    }
+
+    SDL_DisplayID dID = SDL_GetDisplayForWindow(state->window);
+    const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode(dID);
+
+    state->dt = 1.0/mode->refresh_rate;
+
+    // I dont know why, but SDL's ABGR8 = GL_RGBA8
+    SDL_Surface* converted_surf =
+        SDL_ConvertSurface(surf, SDL_PIXELFORMAT_ABGR8888);
+
+    if (!init_opengl_state(state)) {
+        return SDL_APP_FAILURE;
+    }
+
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, state->img_w, state->img_h, 0, GL_RGBA,
     GL_UNSIGNED_BYTE, converted_surf->pixels);
+
+    SDL_DestroySurface(surf);
+    SDL_DestroySurface(converted_surf);
 
     SDL_Log("Screenshot loaded successfully into SDL3 window (%dx%d)",
             state->img_w, state->img_h);
@@ -257,7 +252,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
     state->cam.update(state->dt, state->curs, Vec2(state->img_w, state->img_h));
 
-    glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     glUseProgram(state->program);
@@ -280,4 +275,13 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     return SDL_APP_CONTINUE;
 }
 
-void SDL_AppQuit(void* appstate, SDL_AppResult result) {}
+void SDL_AppQuit(void* appstate, SDL_AppResult result) {
+    app *state = static_cast<app*>(appstate);
+
+    glDeleteTextures(1, &state->texture);
+    glDeleteProgram(state->program);
+    glDeleteBuffers(1, &state->VBO);
+    glDeleteVertexArrays(1, &state->VAO);
+
+    delete state;
+}

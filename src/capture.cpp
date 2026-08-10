@@ -1,4 +1,6 @@
 #include "capture.hpp"
+#include <cstdio>
+#include <cstdlib>
 
 Session detect_session() {
     const char* s = getenv("XDG_SESSION_TYPE");
@@ -12,23 +14,49 @@ Session detect_session() {
     return Session::Unknown;
 }
 
-SDL_Surface* capture_x11() {
+SDL_Surface* capture_x11(int* out_x, int* out_y) {
     Display* dpy = XOpenDisplay(nullptr);
     if (!dpy) {
         SDL_Log("ERROR: X11 Could not open display");
         return nullptr;
     }
 
-    auto old_handler =
-        XSetErrorHandler([](Display*, XErrorEvent*) -> int { return 0; });
+    float mouse_x = 0, mouse_y = 0;
+    SDL_GetGlobalMouseState(&mouse_x, &mouse_y);
+
+    SDL_Point pt = {static_cast<int>(mouse_x), static_cast<int>(mouse_y)};
+    SDL_DisplayID dID = SDL_GetDisplayForPoint(&pt);
+
+    SDL_Rect bounds = {0, 0, 0, 0};
+    if (dID != 0) {
+        SDL_GetDisplayBounds(dID, &bounds);
+    } else {
+        int count = 0;
+        SDL_DisplayID* displays = SDL_GetDisplays(&count);
+        if (displays && count > 0) {
+            SDL_GetDisplayBounds(displays[0], &bounds);
+        }
+        SDL_free(displays);
+    }
 
     int screen = DefaultScreen(dpy);
     Window root = RootWindow(dpy, screen);
-    int width = DisplayWidth(dpy, screen);
-    int height = DisplayHeight(dpy, screen);
+
+    if (bounds.w <= 0 || bounds.h <= 0) {
+        bounds.w = DisplayWidth(dpy, screen);
+        bounds.h = DisplayHeight(dpy, screen);
+        bounds.x = 0;
+        bounds.y = 0;
+    }
+
+    if (out_x) *out_x = bounds.x;
+    if (out_y) *out_y = bounds.y;
+
+    auto old_handler =
+        XSetErrorHandler([](Display*, XErrorEvent*) -> int { return 0; });
 
     // Get all pixels
-    XImage* xi = XGetImage(dpy, root, 0, 0, width, height, AllPlanes, ZPixmap);
+    XImage* xi = XGetImage(dpy, root, bounds.x, bounds.y, bounds.w, bounds.h, AllPlanes, ZPixmap);
 
     XSetErrorHandler(old_handler);
 
@@ -90,12 +118,25 @@ SDL_Surface* capture_x11() {
 
     XDestroyImage(xi);
     XCloseDisplay(dpy);
-    SDL_Log("X11 capture successful (%dx%d)", surf->w, surf->h);
+    SDL_Log("X11 capture successful (%dx%d) at offset (%d,%d)", surf->w, surf->h, bounds.x, bounds.y);
     return surf;
 }
 
-SDL_Surface* capture_wayland() {
-    const std::string temp_file = "/tmp/zoomer_screenshot.png";
+SDL_Surface* capture_wayland(int* out_x, int* out_y) {
+    if (out_x) *out_x = 0;
+    if (out_y) *out_y = 0;
+
+    // const std::string temp_file = std::tmpnam(nullptr);
+
+    char templte[] = "/tmp/zoomer_screenshotXXXXXX.png";
+    int fd = mkstemps(templte, 4);
+    if (fd == -1) {
+        SDL_Log("Wayland: failed to create temporary file at /tmp/zoomer_screenshot");
+        return nullptr;
+    }
+
+    const std::string temp_file = templte;
+
     std::remove(temp_file.c_str());
 
     // Commands to attempt for Wayland capture
@@ -121,30 +162,30 @@ SDL_Surface* capture_wayland() {
     return nullptr;
 }
 
-SDL_Surface* capture_screenshot() {
+SDL_Surface* capture_screenshot(int* out_x, int* out_y) {
     Session session = detect_session();
     SDL_Surface* surf = nullptr;
 
     if (session == Session::Wayland) {
         SDL_Log("Attempting Wayland screen capture...");
-        surf = capture_wayland();
+        surf = capture_wayland(out_x, out_y);
         if (!surf) {
             SDL_Log(
                 "Wayland capture failed, attempting X11 (Xwayland) "
                 "fallback...");
-            surf = capture_x11();
+            surf = capture_x11(out_x, out_y);
         }
     } else if (session == Session::X11) {
         SDL_Log("Attempting X11 screen capture...");
-        surf = capture_x11();
+        surf = capture_x11(out_x, out_y);
         if (!surf) {
             SDL_Log("X11 capture failed, attempting Wayland fallback...");
-            surf = capture_wayland();
+            surf = capture_wayland(out_x, out_y);
         }
     } else {
         SDL_Log("Session unknown, trying Wayland capture then X11 capture...");
-        surf = capture_wayland();
-        if (!surf) surf = capture_x11();
+        surf = capture_wayland(out_x, out_y);
+        if (!surf) surf = capture_x11(out_x, out_y);
     }
 
     return surf;
