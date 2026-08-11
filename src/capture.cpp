@@ -1,6 +1,6 @@
 #include "capture.hpp"
-#include <cstdio>
 #include <cstdlib>
+#include <chrono>
 
 Session detect_session() {
     const char* s = getenv("XDG_SESSION_TYPE");
@@ -126,31 +126,21 @@ SDL_Surface* capture_wayland(int* out_x, int* out_y) {
     if (out_x) *out_x = 0;
     if (out_y) *out_y = 0;
 
-    // const std::string temp_file = std::tmpnam(nullptr);
-
-    char templte[] = "/tmp/zoomer_screenshotXXXXXX.png";
-    int fd = mkstemps(templte, 4);
-    if (fd == -1) {
-        SDL_Log("Wayland: failed to create temporary file at /tmp/zoomer_screenshot");
-        return nullptr;
-    }
-
-    const std::string temp_file = templte;
-
-    std::remove(temp_file.c_str());
+    auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+    std::filesystem::path temp_file = std::filesystem::temp_directory_path() / ("zoomer_screenshot_" + std::to_string(now) + ".png");
 
     // Commands to attempt for Wayland capture
     const std::string commands[] = {
-        "grim " + temp_file + " >/dev/null 2>&1",
-        "hyprshot -m output -o /tmp -f zoomer_screenshot.png >/dev/null 2>&1",
-        "spectacle -b -n -o " + temp_file + " >/dev/null 2>&1",
-        "gnome-screenshot -f " + temp_file + " >/dev/null 2>&1"};
+        "grim \"" + temp_file.string() + "\" >/dev/null 2>&1",
+        "hyprshot -m output -o \"" + temp_file.parent_path().string() + "\" -f \"" + temp_file.filename().string() + "\" >/dev/null 2>&1",
+        "spectacle -b -n -m -o \"" + temp_file.string() + "\" >/dev/null 2>&1",
+        "gnome-screenshot -f \"" + temp_file.string() + "\" >/dev/null 2>&1"};
 
     for (const auto& cmd : commands) {
         int res = std::system(cmd.c_str());
         if (res == 0 && std::filesystem::exists(temp_file)) {
-            SDL_Surface* surf = IMG_Load(temp_file.c_str());
-            std::remove(temp_file.c_str());
+            SDL_Surface* surf = IMG_Load(temp_file.string().c_str());
+            std::filesystem::remove(temp_file);
             if (surf) {
                 SDL_Log("Wayland capture successful via command");
                 return surf;

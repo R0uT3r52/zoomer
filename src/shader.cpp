@@ -13,6 +13,7 @@ GLuint load_shader_program(const char* vert_shader, const char* frag_shader, cha
     if (!success) {
         glGetShaderInfoLog(vertex_shader, 512, nullptr, log);
         strncpy(logs, log, 512);
+        glDeleteShader(vertex_shader);
         return 0;
     }
 
@@ -25,6 +26,8 @@ GLuint load_shader_program(const char* vert_shader, const char* frag_shader, cha
     if (!success) {
         glGetShaderInfoLog(fragment_shader, 512, nullptr, log);
         strncpy(logs, log, 512);
+        glDeleteShader(vertex_shader);
+        glDeleteShader(fragment_shader);
         return 0;
     }
 
@@ -41,6 +44,7 @@ GLuint load_shader_program(const char* vert_shader, const char* frag_shader, cha
     if (!success) {
         glGetProgramInfoLog(program, 512, nullptr, log);
         strncpy(logs, log, 512);
+        glDeleteProgram(program);
         return 0;
     }
 

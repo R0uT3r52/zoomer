@@ -27,3 +27,5 @@ target_link_libraries(zoomer PRIVATE
     ${X11_LIBRARIES}
     ${GL_LIBRARIES}
 )
+
+install(TARGETS zoomer DESTINATION bin)

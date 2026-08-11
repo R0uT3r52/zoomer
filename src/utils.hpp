@@ -4,7 +4,7 @@
 #include <cmath>
 
 constexpr float EPS = 1.0e-6F;
-constexpr float MIN_SCALE = 0.01F;
+constexpr float MIN_SCALE = 0.25F;
 constexpr float SCROLL_SPEED = 1.5F; // Might be used later?
 constexpr float DRAG_FRICTION = 6.0F;
 constexpr float SCALE_FRICTION = 4.0F;

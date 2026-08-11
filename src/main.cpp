@@ -17,19 +17,20 @@
 #include "utils.hpp"
 
 struct app {
-    SDL_Window* window;
-    int img_w, img_h;
-    unsigned int program, VAO, VBO, texture;
-    float dt;
+    SDL_Window* window = nullptr;
+    SDL_GLContext gl_ctx = nullptr;
+    int img_w = 0, img_h = 0;
+    unsigned int program = 0, VAO = 0, VBO = 0, texture = 0;
+    float dt = 0.0f;
     camera cam;
     cursor curs;
 
     // OpenGL uniform IDs
-    int cameraPosGLLocation;
-    int cameraScaleGLLocation;
-    int windowSizeGLLocation;
-    int screenshotSizeGLLocation;
-    int cursorPosGLLocation;
+    int cameraPosGLLocation = -1;
+    int cameraScaleGLLocation = -1;
+    int windowSizeGLLocation = -1;
+    int screenshotSizeGLLocation = -1;
+    int cursorPosGLLocation = -1;
 };
 
 float vertices[] = {
@@ -140,6 +141,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
                         SDL_GL_CONTEXT_PROFILE_CORE);
 
     app* state = new app;
+    *appstate = state;
 
     int screen_x = 0, screen_y = 0;
     SDL_Surface* surf = capture_screenshot(&screen_x, &screen_y);
@@ -153,17 +155,21 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     state->window = SDL_CreateWindow(
         "zoomer", state->img_w, state->img_h,
-        SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
+        SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
     if (!state->window) {
         SDL_Log("ERROR: Could not create a window: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
-    
+
     SDL_SetWindowPosition(state->window, screen_x, screen_y);
 
-    SDL_GLContext gl_ctx = SDL_GL_CreateContext(state->window);
+    state->gl_ctx = SDL_GL_CreateContext(state->window);
+    if (!state->gl_ctx) {
+        SDL_Log("ERROR: Could not create GL context: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
 
-    if (!SDL_GL_MakeCurrent(state->window, gl_ctx)) {
+    if (!SDL_GL_MakeCurrent(state->window, state->gl_ctx)) {
         SDL_Log("ERROR: GL_MakeCurrent exited with error: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
@@ -181,15 +187,21 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     // I dont know why, but SDL's ABGR8 = GL_RGBA8
     SDL_Surface* converted_surf =
         SDL_ConvertSurface(surf, SDL_PIXELFORMAT_ABGR8888);
+    SDL_DestroySurface(surf);
+
+    if (!converted_surf) {
+        SDL_Log("ERROR: Could not convert surface: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
 
     if (!init_opengl_state(state)) {
+        SDL_DestroySurface(converted_surf);
         return SDL_APP_FAILURE;
     }
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, state->img_w, state->img_h, 0, GL_RGBA,
     GL_UNSIGNED_BYTE, converted_surf->pixels);
 
-    SDL_DestroySurface(surf);
     SDL_DestroySurface(converted_surf);
 
     SDL_Log("Screenshot loaded successfully into SDL3 window (%dx%d)",
@@ -252,7 +264,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
     state->cam.update(state->dt, state->curs, Vec2(state->img_w, state->img_h));
 
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     glUseProgram(state->program);
@@ -277,11 +289,19 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
     app *state = static_cast<app*>(appstate);
+    if (!state) {
+        SDL_Quit();
+        return;
+    }
 
-    glDeleteTextures(1, &state->texture);
-    glDeleteProgram(state->program);
-    glDeleteBuffers(1, &state->VBO);
-    glDeleteVertexArrays(1, &state->VAO);
+    if (state->texture) glDeleteTextures(1, &state->texture);
+    if (state->program) glDeleteProgram(state->program);
+    if (state->VBO) glDeleteBuffers(1, &state->VBO);
+    if (state->VAO) glDeleteVertexArrays(1, &state->VAO);
+
+    if (state->gl_ctx) SDL_GL_DestroyContext(state->gl_ctx);
+    if (state->window) SDL_DestroyWindow(state->window);
 
     delete state;
+    SDL_Quit();
 }
