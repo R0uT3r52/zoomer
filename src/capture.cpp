@@ -134,7 +134,9 @@ SDL_Surface* capture_wayland(int* out_x, int* out_y) {
         "grim \"" + temp_file.string() + "\" >/dev/null 2>&1",
         "hyprshot -m output -o \"" + temp_file.parent_path().string() + "\" -f \"" + temp_file.filename().string() + "\" >/dev/null 2>&1",
         "spectacle -b -n -m -o \"" + temp_file.string() + "\" >/dev/null 2>&1",
-        "gnome-screenshot -f \"" + temp_file.string() + "\" >/dev/null 2>&1"};
+        "gnome-screenshot -f \"" + temp_file.string() + "\" >/dev/null 2>&1",
+        "flameshot screen -p " + temp_file.string() + ">/dev/null 2>&1",
+    };
 
     for (const auto& cmd : commands) {
         int res = std::system(cmd.c_str());
