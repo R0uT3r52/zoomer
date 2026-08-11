@@ -1,0 +1,35 @@
+name: Build and Release AppImage
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create output directory
+        run: mkdir -p ${{ github.workspace }}/out
+
+      - name: Build Docker Image
+        run: docker build -t appimage-builder .
+
+      - name: Run Container and Generate AppImage
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/out:/out \
+            appimage-builder
+
+      - name: Upload to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

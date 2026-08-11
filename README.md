@@ -1,2 +1,82 @@
-# zoomer
-Simple C++ zoomer-magnifier app
+# Zoomer
+
+Zoomer is a screen magnification utility for Linux, built with C++, SDL3, and OpenGL 3.3. It allows users to capture a screenshot of their active workspace and zoom into specific areas.
+
+The primary goal of the project is to make the transition between the desktop and the magnified view as seamless as possible. While the project strives for this "invisible" integration, the level of seamlessness depends on the specific compositor and display server configuration.
+
+## Features
+
+- **X11 & Wayland Support**: Detects the session type and uses appropriate capture methods.
+- **Active Monitor Focus**: On X11, the application captures the monitor where the cursor is currently located.
+- **OpenGL**: Uses OpenGL 3.3 for smooth zooming and panning.
+- **Modern SDL3**: Implemented using the new SDL3 callback-based architecture.
+- **AppImage Distribution**: Portable build support via Docker.
+
+## Prerequisites
+
+To build and run Zoomer, you need the following libraries:
+
+- **SDL3** (core library and headers)
+- **SDL3_image**
+- **libX11**
+- **OpenGL / Mesa**
+- **PkgConfig** and **CMake** (for building)
+
+On Wayland, one of the following tools is required for screen capture: `grim`, `hyprshot`, `spectacle`, or `gnome-screenshot`.
+
+## Installation
+
+### Download Release
+You can download the pre-compiled portable **AppImage** from the [GitHub Releases](https://github.com/R0uT3r52/zoomer/releases) page.
+
+### Standard Build
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/R0uT3r52/zoomer.git
+   cd zoomer
+   ```
+2. Configure and build:
+   ```bash
+   cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+   cmake --build build
+   ```
+3. Run: `./build/zoomer`
+
+### Building AppImage (via Docker)
+1. Build the Docker image: `docker build -t zoomer-builder .`
+2. Extract the AppImage: `docker run --rm -v $(pwd):/out zoomer-builder`
+
+## Setup Recommendation
+
+Since Zoomer is not a background daemon, it is highly recommended to bind it to a system-wide hotkey (e.g., `Super + Z`). 
+
+- **X11**: Use your desktop environment's keyboard settings or `xbindkeys`.
+- **Wayland**: Use your compositor's configuration.
+
+Point the hotkey to the absolute path of the `zoomer` binary or the downloaded `AppImage`.
+
+## Usage
+
+When launched, Zoomer captures a snapshot of the current screen and opens in a fullscreen window.
+
+### Controls
+
+| Input | Action |
+| :--- | :--- |
+| **Mouse Wheel** | Zoom in / Zoom out |
+| **Left Click + Drag** | Pan the view |
+| **R** | Reset zoom and position |
+| **Q** / **Esc** | Exit application |
+
+## Known Issues
+
+- **Multi-monitor Support**: While the application attempts to detect the active monitor, behavior on complex multi-monitor setups may be inconsistent on X11 or Wayland. Improvements are currently in development.
+
+## Acknowledgements
+
+- This project is heavily inspired by [boomer](https://github.com/tsoding/boomer) by **tsoding**.
+- Shader logic and general application flow are based on the original nim implementation.
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for details.
