@@ -3,7 +3,7 @@ FROM ubuntu:22.04 AS app-builder
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential cmake ninja-build pkg-config git wget ca-certificates \
+    build-essential cmake meson libsystemd-dev pkg-config ninja-build pkg-config git wget ca-certificates \
     libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev \
     libxi-dev libxss-dev libxtst-dev libxkbcommon-dev libdrm-dev libgbm-dev \
     libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libglvnd-dev \
@@ -38,6 +38,19 @@ RUN git clone --depth 1 --branch main https://github.com/libsdl-org/SDL_image.gi
     cmake --build build -j$(nproc) && \
     cmake --install build && \
     cd .. && rm -rf SDL_image
+
+# Build SDBUS-CPP
+RUN git clone --depth 1 --branch master https://github.com/Kistler-Group/sdbus-cpp.git && \
+    cd sdbus-cpp && mkdir build && \
+    cmake -S . -B build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DSDBUSCPP_BUILD_LIBSYSTEMD=OFF \
+    -DSDBUSCPP_BUILD_DOCS=OFF && \
+    cmake --build build -j$(nproc) && \
+    cmake --install build && \
+    cd .. && rm -rf sdbus-cpp
 
 RUN ldconfig
 

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(zoomer LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -10,6 +10,10 @@ pkg_check_modules(SDL3 REQUIRED sdl3)
 pkg_check_modules(SDL3_IMAGE REQUIRED sdl3-image)
 pkg_check_modules(X11 REQUIRED x11)
 pkg_check_modules(GL REQUIRED gl)
+pkg_check_modules(Systemd REQUIRED IMPORTED_TARGET libsystemd)
+
+find_package(sdbus-c++ REQUIRED)
+find_package(Threads REQUIRED)
 
 add_executable(zoomer src/main.cpp src/shader.cpp src/capture.cpp src/glad.c)
 
@@ -26,6 +30,9 @@ target_link_libraries(zoomer PRIVATE
     ${SDL3_IMAGE_LIBRARIES}
     ${X11_LIBRARIES}
     ${GL_LIBRARIES}
+    SDBusCpp::sdbus-c++
+    PkgConfig::Systemd
+    Threads::Threads
 )
 
 install(TARGETS zoomer DESTINATION bin)

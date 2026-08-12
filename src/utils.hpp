@@ -14,10 +14,7 @@ struct Vec2 {
     float x;
     float y;
 
-    Vec2(){
-        x = 0.0f;
-        y = 0.0f;
-    };
+    Vec2() : x(0.0f), y(0.0f) {};
     Vec2(float x, float y){
         this->x = x;
         this->y = y;
