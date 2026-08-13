@@ -6,7 +6,7 @@
 constexpr float EPS = 1.0e-6F;
 constexpr float MIN_SCALE = 0.25F;
 constexpr float SCROLL_SPEED = 1.5F; // Might be used later?
-constexpr float DRAG_FRICTION = 6.0F;
+constexpr float DRAG_FRICTION = 3.0F;
 constexpr float SCALE_FRICTION = 4.0F;
 constexpr float VELOCITY_THRESHOLD = 15.0F;
 
@@ -19,6 +19,12 @@ struct Vec2 {
         this->x = x;
         this->y = y;
     };
+
+    // Maybe it would be better to use comparison with EPS
+    // than using this.float == other.float
+    bool operator==(const Vec2 &other) const {
+        return this->x == other.x && this->y == other.y;
+    }
 
     Vec2 operator+(const Vec2 &other) const {
         return Vec2{this->x + other.x, this->y + other.y};
@@ -112,7 +118,32 @@ struct camera {
         scalePivot = Vec2();
     };
 
-    void update(float dt, cursor curs, Vec2 windowSize) {
+    void update(float dt, cursor curs, Vec2 windowSize, bool &is_resetting) {
+
+        if (is_resetting) {
+            float reset_speed = 3.0f;
+            Vec2 target_pos = Vec2();
+            float target_scale = 1.0f;
+
+            Pos = Pos + (target_pos - Pos) * reset_speed * dt;
+            Scale = Scale + (target_scale - Scale) * reset_speed * dt;
+
+            // Use a little bigger values to prevent infinite approx
+            if (std::fabs(Scale - target_scale) < EPS * 1.0e3f) {
+                Scale = target_scale;
+            }
+            // EPS is too small, so we can use delta for approx 2 pixels
+            if ((Pos - target_pos).length() < 2.0f) {
+                Pos = target_pos;
+            }
+
+
+            if (Scale == target_scale && Pos == target_pos) {
+                is_resetting = false;
+            }
+            return;
+        }
+
         if (std::fabs(dScale) > 0.5) {
             Vec2 point1 = (scalePivot - (windowSize / 2)) / Scale;
             Scale = std::max(Scale + dScale * dt, MIN_SCALE);

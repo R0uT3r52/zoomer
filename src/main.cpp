@@ -21,7 +21,8 @@ struct app {
     SDL_GLContext gl_ctx = nullptr;
     int img_w = 0, img_h = 0;
     unsigned int program = 0, VAO = 0, VBO = 0, texture = 0;
-    float dt = 0.0f;
+    float dt = 0.0f, ref_rate = 0.0f;
+    bool is_resetting = false;
     camera cam;
     cursor curs;
 
@@ -183,6 +184,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode(dID);
 
     state->dt = 1.0/mode->refresh_rate;
+    state->ref_rate = mode->refresh_rate;
 
     // I dont know why, but SDL's ABGR8 = GL_RGBA8
     SDL_Surface* converted_surf =
@@ -224,23 +226,25 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
         return SDL_APP_SUCCESS;
     }
     if(event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_R) {
-        // Reset state
-        state->cam.Scale = 1.0f;
+        // Smoothly reset state
+        state->is_resetting = true;
         state->cam.dScale = 0.0f;
-        state->cam.Pos = Vec2();
         state->cam.Vel = Vec2();
     }
     if (event->type == SDL_EVENT_MOUSE_WHEEL) {
         // SDL_Log("LOG: Scroll x: %f, Scroll y: %f", event->wheel.x, event->wheel.y);
+        state->is_resetting = false;
 
         // wheel.y is already handling UP/DOWN with negative/positive value
         state->cam.dScale += event->wheel.y;
         state->cam.scalePivot = state->curs.Cur;
     }
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_LEFT) {
+        state->is_resetting = false;
         state->curs.drag = true;
     }
     if (event->type == SDL_EVENT_MOUSE_BUTTON_UP && event->button.button == SDL_BUTTON_LEFT) {
+        state->is_resetting = false;
         state->curs.drag = false;
     }
     if (event->type == SDL_EVENT_MOUSE_MOTION) {
@@ -250,7 +254,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
         if (state->curs.drag) {
             Vec2 delta = world(state->cam, state->curs.Prev) - world(state->cam, state->curs.Cur);
             state->cam.Pos += delta;
-            state->cam.Vel = delta * state->dt;
+            state->cam.Vel = delta * state->ref_rate;
         }
 
         state->curs.Prev = state->curs.Cur;
@@ -262,7 +266,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 SDL_AppResult SDL_AppIterate(void* appstate) {
     app* state = static_cast<app*>(appstate);
 
-    state->cam.update(state->dt, state->curs, Vec2(state->img_w, state->img_h));
+    state->cam.update(state->dt, state->curs, Vec2(state->img_w, state->img_h), state->is_resetting);
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
