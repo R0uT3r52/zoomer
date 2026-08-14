@@ -32,6 +32,8 @@ struct app {
     int windowSizeGLLocation = -1;
     int screenshotSizeGLLocation = -1;
     int cursorPosGLLocation = -1;
+    int textureSizeGLLocation = -1;
+    int currentZoomGLLocation = -1;
 };
 
 float vertices[] = {
@@ -68,8 +70,19 @@ const char* FRAGSHADER =
     "in vec3 col;\n"
     "in vec2 texCord;\n"
     "uniform sampler2D tex;\n"
+    "uniform vec2 textureSize;\n"
+    "uniform float currentZoom;\n"
     "out vec4 fragCol;\n"
     "void main() {\n"
+    "vec4 texCol = texture(tex, texCord);\n"
+    "if (currentZoom > 8.0) {\n"
+    "vec2 pixCords = texCord * textureSize;\n"
+    "vec2 gridDistance = min(fract(pixCords), 1.0 - fract(pixCords));\n"
+    "float lineWidth = 1.0/currentZoom;\n"
+    "if (gridDistance.x < lineWidth || gridDistance.y < lineWidth) {\n"
+    "vec4 gridCol = vec4(1.0, 1.0, 1.0, 0.3);\n"
+    "fragCol = mix(texture(tex, texCord), gridCol, gridCol.a);\n"
+    "return;\n} \n}"
     "fragCol = texture(tex, texCord);\n}"
 ;
 
@@ -114,6 +127,8 @@ int init_opengl_state(app* state) {
     state->windowSizeGLLocation = glGetUniformLocation(state->program, "windowSize");
     state->screenshotSizeGLLocation = glGetUniformLocation(state->program, "screenshotSize");
     state->cursorPosGLLocation = glGetUniformLocation(state->program, "cursorPos");
+    state->textureSizeGLLocation = glGetUniformLocation(state->program, "textureSize");
+    state->currentZoomGLLocation = glGetUniformLocation(state->program, "currentZoom");
 
     glGenTextures(1, &state->texture);
     glBindTexture(GL_TEXTURE_2D, state->texture);
@@ -124,7 +139,7 @@ int init_opengl_state(app* state) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
     GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D,
-    GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     return 1;
 }
@@ -280,6 +295,8 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     glUniform2f(state->windowSizeGLLocation, state->img_w, state->img_h);
     glUniform2f(state->screenshotSizeGLLocation, state->img_w, state->img_h);
     glUniform2f(state->cursorPosGLLocation, state->curs.Cur.x, state->curs.Cur.y);
+    glUniform2f(state->textureSizeGLLocation, state->img_w, state->img_h);
+    glUniform1f(state->currentZoomGLLocation, state->cam.Scale);
 
     glBindTexture(GL_TEXTURE_2D, state->texture);
     glBindVertexArray(state->VAO);
