@@ -4,6 +4,8 @@ Zoomer is a screen magnification utility for Linux, built with C++, SDL3, and Op
 
 The primary goal of the project is to make the transition between the desktop and the magnified view as seamless as possible. While the project strives for this "invisible" integration, the level of seamlessness depends on the specific compositor and display server configuration.
 
+![App preview](./assets/preview.gif)
+
 ## Features
 
 - **X11 & Wayland Support**: Detects the session type and uses appropriate capture methods.
@@ -16,13 +18,16 @@ The primary goal of the project is to make the transition between the desktop an
 
 To build and run Zoomer, you need the following libraries:
 
+- **C++20 Compiler** (e.g., GCC 11+ or Clang 13+)
 - **SDL3** (core library and headers)
 - **SDL3_image**
 - **libX11**
+- **sdbus-c++** (Wayland portal capture)
+- **libsystemd**
 - **OpenGL / Mesa**
 - **PkgConfig** and **CMake** (for building)
 
-On Wayland, one of the following tools is required for screen capture: `grim`, `hyprshot`, `spectacle`, or `gnome-screenshot`.
+On Wayland, the application attempts to use the **XDG Desktop Portal** (via `sdbus-c++`). If fails, it falls back to one of the following tools: `grim`, `hyprshot`, `spectacle`, or `flameshot`.
 
 ## Installation
 
