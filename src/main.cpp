@@ -15,6 +15,8 @@
 #include "capture.hpp"
 #include "shader.hpp"
 #include "utils.hpp"
+#include "shader_vertex.hpp"
+#include "shader_fragment.hpp"
 
 struct app {
     SDL_Window* window = nullptr;
@@ -47,45 +49,6 @@ float vertices[] = {
      1.0f, -1.0f, 0.0f,     0.0f, 0.0f, 0.0f,     1.0f, 1.0f,
 };
 
-const char* VERTSHADER =
-    "#version 330 core\n"
-    "layout (location=0) in vec3 vertexPos;\n"
-    "layout (location=1) in vec3 vertexCol;\n"
-    "layout (location=2) in vec2 texPos;\n"
-    "uniform vec2 cameraPos;\n"
-    "uniform float cameraScale;\n"
-    "uniform vec2 windowSize;\n"
-    "uniform vec2 screenshotSize;\n"
-    "uniform vec2 cursorPos;\n"
-    "out vec3 col;\n"
-    "out vec2 texCord;\n"
-
-    "void main() {\n"
-    "vec2 offsetNDC = (cameraPos / windowSize) * 2.0f;\n"
-    "gl_Position = vec4((vertexPos.xy - offsetNDC * vec2(1.0, -1.0)) * cameraScale , vertexPos.z, 1.0);\n"
-    "texCord = texPos;\n"
-    "col = vertexCol;\n}";
-const char* FRAGSHADER =
-    "#version 330 core\n"
-    "in vec3 col;\n"
-    "in vec2 texCord;\n"
-    "uniform sampler2D tex;\n"
-    "uniform vec2 textureSize;\n"
-    "uniform float currentZoom;\n"
-    "out vec4 fragCol;\n"
-    "void main() {\n"
-    "vec4 texCol = texture(tex, texCord);\n"
-    "if (currentZoom > 8.0) {\n"
-    "vec2 pixCords = texCord * textureSize;\n"
-    "vec2 gridDistance = min(fract(pixCords), 1.0 - fract(pixCords));\n"
-    "float lineWidth = 1.0/currentZoom;\n"
-    "if (gridDistance.x < lineWidth || gridDistance.y < lineWidth) {\n"
-    "vec4 gridCol = vec4(1.0, 1.0, 1.0, 0.3);\n"
-    "fragCol = mix(texture(tex, texCord), gridCol, gridCol.a);\n"
-    "return;\n} \n}"
-    "fragCol = texture(tex, texCord);\n}"
-;
-
 int init_opengl_state(app* state) {
     // unsigned int VAO;
     glGenVertexArrays(1, &state->VAO);
@@ -112,7 +75,7 @@ int init_opengl_state(app* state) {
 
     char shader_logs[512];
 
-    state->program = load_shader_program(VERTSHADER, FRAGSHADER, shader_logs);
+    state->program = load_shader_program((const char*)vert_glsl, vert_glsl_len, (const char*)frag_glsl, frag_glsl_len, shader_logs);
 
     if (!state->program) {
         SDL_Log(
