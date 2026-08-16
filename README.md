@@ -33,11 +33,11 @@ To build and run Zoomer, you need the following dependencies:
   ```
 - **Fedora**:
   ```bash
-  sudo dnf install gcc-c++ cmake pkgconf-pkg-config SDL3-devel SDL3_image-devel sdbus-c++-devel libX11-devel mesa-libGL-devel vim-common
+  sudo dnf install gcc-c++ cmake pkgconf-pkg-config SDL3-devel SDL3_image-devel sdbus-c++-devel libX11-devel mesa-libGL-devel xxd
   ```
 - **Debian / Ubuntu**:
   ```bash
-  sudo apt install build-essential cmake pkg-config libsdbus-c++-dev libsystemd-dev libx11-dev libgl1-mesa-dev xxd
+  sudo apt install build-essential cmake pkg-config libsdl3-dev libsdl3-image-dev libsdbus-c++-dev libsystemd-dev libx11-dev libgl1-mesa-dev xxd
   # Note: If SDL3 / SDL3_image not in your distro apt repo, build them from source or use the Docker build below
   ```
 
