@@ -16,19 +16,33 @@ The primary goal of the project is to make the transition between the desktop an
 
 ## Prerequisites
 
-To build and run Zoomer, you need the following libraries:
+To build and run Zoomer, you need the following dependencies:
 
-- **C++20 Compiler** (e.g., GCC 11+ or Clang 13+)
-- **SDL3** (core library and headers)
-- **SDL3_image**
-- **xxd** (for shader baking inside executable)
-- **libX11**
-- **sdbus-c++** (Wayland portal capture)
-- **libsystemd**
-- **OpenGL / Mesa**
-- **PkgConfig** and **CMake** (for building)
+- **C++20 Compiler** (GCC 11+ or Clang 13+)
+- **CMake** (3.21+) and **PkgConfig**
+- **SDL3** && **SDL3_image** (with PNG/JPEG support)
+- **sdbus-c++** (for Wayland portal screenshot capture) && **libsystemd**
+- **OpenGL / Mesa** && **libX11** dev headers
+- **xxd** (for baking GLSL shaders into the executable)
 
-On Wayland, the application attempts to use the **XDG Desktop Portal** (via `sdbus-c++`). If fails, it falls back to one of the following tools: `grim`, `hyprshot`, `spectacle`, or `flameshot`.
+### Installing dependencies
+
+- **Arch Linux**:
+  ```bash
+  sudo pacman -S gcc cmake pkgconf sdl3 sdl3_image sdbus-cpp libx11 mesa vim
+  ```
+- **Fedora**:
+  ```bash
+  sudo dnf install gcc-c++ cmake pkgconf-pkg-config SDL3-devel SDL3_image-devel sdbus-c++-devel libX11-devel mesa-libGL-devel vim-common
+  ```
+- **Debian / Ubuntu**:
+  ```bash
+  sudo apt install build-essential cmake pkg-config libsdbus-c++-dev libsystemd-dev libx11-dev libgl1-mesa-dev xxd
+  # Note: If SDL3 / SDL3_image not in your distro apt repo, build them from source or use the Docker build below
+  ```
+
+On Wayland, the application attempts to use the **XDG Desktop Portal** (via `sdbus-c++`). If that fails, it falls back to one of the following tools: `grim`, `hyprshot`, `spectacle`, or `flameshot`.
+
 
 ## Installation
 
