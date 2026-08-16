@@ -1,0 +1,19 @@
+{
+  "name": "zoomer",
+  "version-string": "0.4.0",
+  "dependencies": [
+    "sdl3",
+    {
+      "name": "sdl3-image",
+      "features": [
+        "png",
+        "jpeg"
+      ]
+    },
+    {
+      "name": "sdbus-cpp",
+      "platform": "linux"
+    }
+  ]
+}
+

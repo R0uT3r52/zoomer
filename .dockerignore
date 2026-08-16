@@ -1,0 +1,7 @@
+build
+.git
+.cache
+*.AppImage
+*.log
+squashfs-root
+compile_commands.json

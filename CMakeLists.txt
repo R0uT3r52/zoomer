@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.21)
 project(zoomer LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -10,6 +10,8 @@ set(SHADER_FRAG "${CMAKE_CURRENT_SOURCE_DIR}/shaders/frag.glsl")
 
 set(GEN_SHADER_VERT "${CMAKE_CURRENT_BINARY_DIR}/shader_vertex.hpp")
 set(GEN_SHADER_FRAG "${CMAKE_CURRENT_BINARY_DIR}/shader_fragment.hpp")
+
+set(OpenGL_GL_PREFERENCE GLVND)
 
 add_custom_command(
     OUTPUT ${GEN_SHADER_VERT}
@@ -27,34 +29,27 @@ add_custom_command(
     COMMENT "Baking FRAG Shader"
 )
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(SDL3 REQUIRED sdl3)
-pkg_check_modules(SDL3_IMAGE REQUIRED sdl3-image)
-pkg_check_modules(X11 REQUIRED x11)
-pkg_check_modules(GL REQUIRED gl)
-pkg_check_modules(Systemd REQUIRED IMPORTED_TARGET libsystemd)
-
-find_package(sdbus-c++ REQUIRED)
+find_package(SDL3 CONFIG REQUIRED)
+find_package(SDL3_image CONFIG REQUIRED)
+find_package(sdbus-c++ CONFIG REQUIRED)
+find_package(X11 REQUIRED)
+find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
 
 add_executable(zoomer src/main.cpp src/shader.cpp src/capture.cpp src/glad.c ${GEN_SHADER_VERT} ${GEN_SHADER_FRAG})
 
 target_include_directories(zoomer PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${SDL3_INCLUDE_DIRS}
-    ${SDL3_IMAGE_INCLUDE_DIRS}
     ${X11_INCLUDE_DIRS}
-    ${GL_INCLUDE_DIRS}
     include
 )
 
 target_link_libraries(zoomer PRIVATE
-    ${SDL3_LIBRARIES}
-    ${SDL3_IMAGE_LIBRARIES}
-    ${X11_LIBRARIES}
-    ${GL_LIBRARIES}
+    SDL3::SDL3
+    SDL3_image::SDL3_image
+    X11::X11
+    OpenGL::GL
     SDBusCpp::sdbus-c++
-    PkgConfig::Systemd
     Threads::Threads
 )
 

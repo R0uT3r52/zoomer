@@ -21,6 +21,7 @@ To build and run Zoomer, you need the following libraries:
 - **C++20 Compiler** (e.g., GCC 11+ or Clang 13+)
 - **SDL3** (core library and headers)
 - **SDL3_image**
+- **xxd** (for shader baking inside executable)
 - **libX11**
 - **sdbus-c++** (Wayland portal capture)
 - **libsystemd**
