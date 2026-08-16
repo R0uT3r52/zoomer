@@ -249,7 +249,14 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 SDL_AppResult SDL_AppIterate(void* appstate) {
     app* state = static_cast<app*>(appstate);
 
-    state->cam.update(state->dt, state->curs, Vec2(state->img_w, state->img_h), state->is_resetting);
+    // trying to fix zoom on X11 while built with vcpkg
+    static Uint64 last_time = 0;
+    Uint64 now = SDL_GetTicksNS();
+    float dt = (last_time > 0) ? static_cast<float>(now - last_time) / 1.0e9f : state->dt;
+    last_time = now;
+    if (dt > 0.05f) dt = 0.05f;
+
+    state->cam.update(dt, state->curs, Vec2(state->img_w, state->img_h), state->is_resetting);
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
