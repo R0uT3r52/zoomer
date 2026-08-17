@@ -1,16 +1,15 @@
 #pragma once
 
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_log.h>
 #include <SDL3/SDL_surface.h>
-#include <SDL3_image/SDL_image.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <sdbus-c++/sdbus-c++.h>
-#include <SDL3/SDL_log.h>
 #include <sdbus-c++/Error.h>
 #include <sdbus-c++/IConnection.h>
 #include <sdbus-c++/IProxy.h>
 #include <sdbus-c++/Types.h>
+#include <sdbus-c++/sdbus-c++.h>
 
 #include <cstdio>
 #include <cstdlib>

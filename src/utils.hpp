@@ -5,7 +5,7 @@
 
 constexpr float EPS = 1.0e-6F;
 constexpr float MIN_SCALE = 0.25F;
-constexpr float SCROLL_SPEED = 1.5F; // Might be used later?
+constexpr float SCROLL_SPEED = 1.5F;  // Might be used later?
 constexpr float DRAG_FRICTION = 3.0F;
 constexpr float SCALE_FRICTION = 4.0F;
 constexpr float VELOCITY_THRESHOLD = 15.0F;
@@ -15,38 +15,38 @@ struct Vec2 {
     float y;
 
     Vec2() : x(0.0f), y(0.0f) {};
-    Vec2(float x, float y){
+    Vec2(float x, float y) {
         this->x = x;
         this->y = y;
     };
 
     // Maybe it would be better to use comparison with EPS
     // than using this.float == other.float
-    bool operator==(const Vec2 &other) const {
+    bool operator==(const Vec2& other) const {
         return this->x == other.x && this->y == other.y;
     }
 
-    Vec2 operator+(const Vec2 &other) const {
+    Vec2 operator+(const Vec2& other) const {
         return Vec2{this->x + other.x, this->y + other.y};
     }
 
-    Vec2& operator+=(const Vec2 &other) {
+    Vec2& operator+=(const Vec2& other) {
         this->x += other.x;
         this->y += other.y;
         return *this;
     }
 
-    Vec2 operator-(const Vec2 &other) const {
+    Vec2 operator-(const Vec2& other) const {
         return Vec2{this->x - other.x, this->y - other.y};
     }
 
-    Vec2& operator-=(const Vec2 &other) {
+    Vec2& operator-=(const Vec2& other) {
         this->x -= other.x;
         this->y -= other.y;
         return *this;
     }
 
-    Vec2 operator*(const Vec2 &other) const {
+    Vec2 operator*(const Vec2& other) const {
         return Vec2{this->x * other.x, this->y * other.y};
     }
 
@@ -54,13 +54,13 @@ struct Vec2 {
         return Vec2{this->x * d, this->y * d};
     }
 
-    Vec2& operator*=(const Vec2 &other) {
+    Vec2& operator*=(const Vec2& other) {
         this->x *= other.x;
         this->y *= other.y;
         return *this;
     }
 
-    Vec2 operator/(const Vec2 &other) const {
+    Vec2 operator/(const Vec2& other) const {
         return Vec2{this->x / other.x, this->y / other.y};
     }
 
@@ -68,7 +68,7 @@ struct Vec2 {
         return Vec2{this->x / d, this->y / d};
     }
 
-    Vec2& operator/=(const Vec2 &other) {
+    Vec2& operator/=(const Vec2& other) {
         this->x /= other.x;
         this->y /= other.y;
         return *this;
@@ -96,7 +96,7 @@ struct cursor {
     Vec2 Prev;
     bool drag;
 
-    cursor(){
+    cursor() {
         Cur = Vec2();
         Prev = Vec2();
         drag = false;
@@ -110,7 +110,7 @@ struct camera {
     float dScale;
     Vec2 scalePivot;
 
-    camera(){
+    camera() {
         Pos = Vec2();
         Vel = Vec2();
         Scale = 1.0f;
@@ -118,8 +118,7 @@ struct camera {
         scalePivot = Vec2();
     };
 
-    void update(float dt, cursor curs, Vec2 windowSize, bool &is_resetting) {
-
+    void update(float dt, cursor curs, Vec2 windowSize, bool& is_resetting) {
         if (is_resetting) {
             float reset_speed = 3.0f;
             Vec2 target_pos = Vec2();
@@ -137,7 +136,6 @@ struct camera {
                 Pos = target_pos;
             }
 
-
             if (Scale == target_scale && Pos == target_pos) {
                 is_resetting = false;
             }
@@ -153,11 +151,11 @@ struct camera {
             dScale -= dScale * dt * SCALE_FRICTION;
         }
 
-        if(!curs.drag && Vel.length() > VELOCITY_THRESHOLD) {
+        if (!curs.drag && Vel.length() > VELOCITY_THRESHOLD) {
             Pos += Vel * dt;
             Vel -= Vel * dt * DRAG_FRICTION;
         }
     };
 };
 
-Vec2 world(camera cam, Vec2 v){ return v / cam.Scale; };
+Vec2 world(camera cam, Vec2 v) { return v / cam.Scale; };
