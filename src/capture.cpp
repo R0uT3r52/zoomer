@@ -231,13 +231,23 @@ SDL_Surface* capture_wayland_commands(int* out_x, int* out_y) {
         if (res == 0 && std::filesystem::exists(temp_file)) {
             unsigned char* data = stbi_load(temp_file.string().c_str(), &width,
                                             &height, &channels, 4);
-            SDL_Surface* surf;
+            SDL_Surface* surf = nullptr;
             if (data) {
-                surf = SDL_CreateSurfaceFrom(
-                    width, height, SDL_PIXELFORMAT_RGBA32, data, width * 4);
+                surf = SDL_CreateSurface(width, height, SDL_PIXELFORMAT_RGBA32);
+                if (surf) {
+                    memcpy(surf->pixels, data, width * height * 4);
+                } else {
+                    SDL_Log(
+                        "ERROR: SDL Could not create surface in "
+                        "wayland_commands");
+                }
+                stbi_image_free(data);
             } else {
-                SDL_Log("ERROR: Unable to load image data in wayland_commands");
+                SDL_Log("ERROR: Unable to load image data from %s",
+                        temp_file.c_str());
             }
+
+            std::filesystem::remove(temp_file);
 
             if (surf) {
                 SDL_Log("Wayland capture successful via command");
@@ -262,21 +272,19 @@ SDL_Surface* capture_wayland(int* out_x, int* out_y) {
     }
 
     int width, height, channels;
-
     unsigned char* data = stbi_load(file_path, &width, &height, &channels, 4);
-    SDL_Surface* surf;
+
+    SDL_Surface* surf = nullptr;
     if (data) {
-        surf = SDL_CreateSurfaceFrom(width, height, SDL_PIXELFORMAT_RGBA32,
-                                     data, width * 4);
-    } else {
-        SDL_Log("ERROR: Unable to load image data in wayland_commands");
-    }
-    if (!surf) {
-        SDL_Log(
-            "ERROR: SDL Could not open image made by SDBUS screenshot method");
-        SDL_DestroySurface(surf);
+        surf = SDL_CreateSurface(width, height, SDL_PIXELFORMAT_RGBA32);
+        if (surf) {
+            memcpy(surf->pixels, data, width * height * 4);
+        } else {
+            SDL_Log("ERROR: SDL Could not create surface in capture_wayland");
+        }
         stbi_image_free(data);
-        return nullptr;
+    } else {
+        SDL_Log("ERROR: Unable to load image data from %s", file_path);
     }
 
     std::filesystem::remove(file_path);
