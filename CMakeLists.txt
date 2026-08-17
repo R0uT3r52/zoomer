@@ -29,27 +29,34 @@ add_custom_command(
     COMMENT "Baking FRAG Shader"
 )
 
-find_package(SDL3 CONFIG REQUIRED)
-find_package(SDL3_image CONFIG REQUIRED)
-find_package(sdbus-c++ CONFIG REQUIRED)
-find_package(X11 REQUIRED)
-find_package(OpenGL REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SDL3 REQUIRED sdl3)
+pkg_check_modules(SDL3_IMAGE REQUIRED sdl3-image)
+pkg_check_modules(X11 REQUIRED x11)
+pkg_check_modules(GL REQUIRED gl)
+pkg_check_modules(Systemd REQUIRED IMPORTED_TARGET libsystemd)
+
+find_package(sdbus-c++ REQUIRED)
 find_package(Threads REQUIRED)
 
 add_executable(zoomer src/main.cpp src/shader.cpp src/capture.cpp src/glad.c ${GEN_SHADER_VERT} ${GEN_SHADER_FRAG})
 
 target_include_directories(zoomer PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
+    ${SDL3_INCLUDE_DIRS}
+    ${SDL3_IMAGE_INCLUDE_DIRS}
     ${X11_INCLUDE_DIRS}
+    ${GL_INCLUDE_DIRS}
     include
 )
 
 target_link_libraries(zoomer PRIVATE
-    SDL3::SDL3
-    SDL3_image::SDL3_image
-    X11::X11
-    OpenGL::GL
+    ${SDL3_LIBRARIES}
+    ${SDL3_IMAGE_LIBRARIES}
+    ${X11_LIBRARIES}
+    ${GL_LIBRARIES}
     SDBusCpp::sdbus-c++
+    PkgConfig::Systemd
     Threads::Threads
 )
 

@@ -38,8 +38,14 @@ To build and run Zoomer, you need the following dependencies:
 - **Debian / Ubuntu**:
   ```bash
   sudo apt install build-essential cmake pkg-config libsdl3-dev libsdl3-image-dev libsdbus-c++-dev libsystemd-dev libx11-dev libgl1-mesa-dev xxd
-  # Note: If SDL3 / SDL3_image not in your distro apt repo, build them from source or use the Docker build below
   ```
+> [!NOTE]
+> If `SDL3` or `SDL3_image` are missing from your distribution's repositories, build them from source or use the Docker environment below.
+> 
+> If you encounter compilation errors (such as syntax mismatches), it is highly recommended to build `SDL3`, `SDL3_image`, and `sdbus-cpp` from source to ensure version compatibility. Used versions are provided in `Dockerfile`
+> 
+> Alternatively, you can use the provided Docker container to automatically build the application as an AppImage.
+
 
 On Wayland, the application attempts to use the **XDG Desktop Portal** (via `sdbus-c++`). If that fails, it falls back to one of the following tools: `grim`, `hyprshot`, `spectacle`, or `flameshot`.
 
