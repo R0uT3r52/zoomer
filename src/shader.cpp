@@ -1,7 +1,9 @@
 #include "shader.hpp"
+
 #include <cstring>
 
-GLuint load_shader_program(const char* vert_shader, int vert_len, const char* frag_shader, int frag_len, char* logs) {
+GLuint load_shader_program(const char* vert_shader, int vert_len,
+                           const char* frag_shader, int frag_len, char* logs) {
     unsigned int vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     int success;
     char log[512];

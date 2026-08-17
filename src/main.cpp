@@ -14,9 +14,9 @@
 
 #include "capture.hpp"
 #include "shader.hpp"
-#include "utils.hpp"
-#include "shader_vertex.hpp"
 #include "shader_fragment.hpp"
+#include "shader_vertex.hpp"
+#include "utils.hpp"
 
 struct app {
     SDL_Window* window = nullptr;
@@ -70,12 +70,15 @@ int init_opengl_state(app* state) {
     glEnableVertexAttribArray(1);
 
     // texture
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (GLvoid*)(6 * sizeof(float)));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                          (GLvoid*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
 
     char shader_logs[512];
 
-    state->program = load_shader_program((const char*)vert_glsl, vert_glsl_len, (const char*)frag_glsl, frag_glsl_len, shader_logs);
+    state->program =
+        load_shader_program((const char*)vert_glsl, vert_glsl_len,
+                            (const char*)frag_glsl, frag_glsl_len, shader_logs);
 
     if (!state->program) {
         SDL_Log(
@@ -85,13 +88,20 @@ int init_opengl_state(app* state) {
         return 0;
     }
 
-    state->cameraPosGLLocation = glGetUniformLocation(state->program, "cameraPos");
-    state->cameraScaleGLLocation = glGetUniformLocation(state->program, "cameraScale");
-    state->windowSizeGLLocation = glGetUniformLocation(state->program, "windowSize");
-    state->screenshotSizeGLLocation = glGetUniformLocation(state->program, "screenshotSize");
-    state->cursorPosGLLocation = glGetUniformLocation(state->program, "cursorPos");
-    state->textureSizeGLLocation = glGetUniformLocation(state->program, "textureSize");
-    state->currentZoomGLLocation = glGetUniformLocation(state->program, "currentZoom");
+    state->cameraPosGLLocation =
+        glGetUniformLocation(state->program, "cameraPos");
+    state->cameraScaleGLLocation =
+        glGetUniformLocation(state->program, "cameraScale");
+    state->windowSizeGLLocation =
+        glGetUniformLocation(state->program, "windowSize");
+    state->screenshotSizeGLLocation =
+        glGetUniformLocation(state->program, "screenshotSize");
+    state->cursorPosGLLocation =
+        glGetUniformLocation(state->program, "cursorPos");
+    state->textureSizeGLLocation =
+        glGetUniformLocation(state->program, "textureSize");
+    state->currentZoomGLLocation =
+        glGetUniformLocation(state->program, "currentZoom");
 
     glGenTextures(1, &state->texture);
     glBindTexture(GL_TEXTURE_2D, state->texture);
@@ -99,17 +109,13 @@ int init_opengl_state(app* state) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-    GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D,
-    GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     return 1;
 }
 
-
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
-
     SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -164,9 +170,10 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     }
 
     SDL_DisplayID dID = SDL_GetDisplayForWindow(state->window);
-    const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode(dID);
+    const SDL_DisplayMode* mode = SDL_GetDesktopDisplayMode(dID);
 
-    float refresh_rate = (mode && mode->refresh_rate > 0.0f) ? mode->refresh_rate : 60.0f;
+    float refresh_rate =
+        (mode && mode->refresh_rate > 0.0f) ? mode->refresh_rate : 60.0f;
     state->dt = 1.0 / refresh_rate;
     state->ref_rate = refresh_rate;
 
@@ -185,22 +192,20 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         return SDL_APP_FAILURE;
     }
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, state->img_w, state->img_h, 0, GL_RGBA,
-    GL_UNSIGNED_BYTE, converted_surf->pixels);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, state->img_w, state->img_h, 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, converted_surf->pixels);
 
     SDL_DestroySurface(converted_surf);
 
     SDL_Log("Screenshot loaded successfully into SDL3 window (%dx%d)",
             state->img_w, state->img_h);
 
-
     *appstate = state;
     return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
-
-    app *state = static_cast<app*>(appstate);
+    app* state = static_cast<app*>(appstate);
 
     if (event->type == SDL_EVENT_KEY_DOWN &&
         (event->key.key == SDLK_ESCAPE || event->key.key == SDLK_Q)) {
@@ -209,25 +214,28 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
     if (event->type == SDL_EVENT_QUIT) {
         return SDL_APP_SUCCESS;
     }
-    if(event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_R) {
+    if (event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_R) {
         // Smoothly reset state
         state->is_resetting = true;
         state->cam.dScale = 0.0f;
         state->cam.Vel = Vec2();
     }
     if (event->type == SDL_EVENT_MOUSE_WHEEL) {
-        // SDL_Log("LOG: Scroll x: %f, Scroll y: %f", event->wheel.x, event->wheel.y);
+        // SDL_Log("LOG: Scroll x: %f, Scroll y: %f", event->wheel.x,
+        // event->wheel.y);
         state->is_resetting = false;
 
         // wheel.y is already handling UP/DOWN with negative/positive value
         state->cam.dScale += event->wheel.y;
         state->cam.scalePivot = state->curs.Cur;
     }
-    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_LEFT) {
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        event->button.button == SDL_BUTTON_LEFT) {
         state->is_resetting = false;
         state->curs.drag = true;
     }
-    if (event->type == SDL_EVENT_MOUSE_BUTTON_UP && event->button.button == SDL_BUTTON_LEFT) {
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_UP &&
+        event->button.button == SDL_BUTTON_LEFT) {
         state->is_resetting = false;
         state->curs.drag = false;
     }
@@ -236,7 +244,8 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
         state->curs.Cur = Vec2(event->motion.x, event->motion.y);
 
         if (state->curs.drag) {
-            Vec2 delta = world(state->cam, state->curs.Prev) - world(state->cam, state->curs.Cur);
+            Vec2 delta = world(state->cam, state->curs.Prev) -
+                         world(state->cam, state->curs.Cur);
             state->cam.Pos += delta;
             state->cam.Vel = delta * state->ref_rate;
         }
@@ -253,11 +262,13 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     // trying to fix zoom on X11 while built with vcpkg
     static Uint64 last_time = 0;
     Uint64 now = SDL_GetTicksNS();
-    float dt = (last_time > 0) ? static_cast<float>(now - last_time) / 1.0e9f : state->dt;
+    float dt = (last_time > 0) ? static_cast<float>(now - last_time) / 1.0e9f
+                               : state->dt;
     last_time = now;
     if (dt > 0.05f) dt = 0.05f;
 
-    state->cam.update(dt, state->curs, Vec2(state->img_w, state->img_h), state->is_resetting);
+    state->cam.update(dt, state->curs, Vec2(state->img_w, state->img_h),
+                      state->is_resetting);
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -270,7 +281,8 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     // TODO: Add separate window size and screenshot size (now its the same)
     glUniform2f(state->windowSizeGLLocation, state->img_w, state->img_h);
     glUniform2f(state->screenshotSizeGLLocation, state->img_w, state->img_h);
-    glUniform2f(state->cursorPosGLLocation, state->curs.Cur.x, state->curs.Cur.y);
+    glUniform2f(state->cursorPosGLLocation, state->curs.Cur.x,
+                state->curs.Cur.y);
     glUniform2f(state->textureSizeGLLocation, state->img_w, state->img_h);
     glUniform1f(state->currentZoomGLLocation, state->cam.Scale);
 
@@ -285,7 +297,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 }
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {
-    app *state = static_cast<app*>(appstate);
+    app* state = static_cast<app*>(appstate);
     if (!state) {
         SDL_Quit();
         return;
