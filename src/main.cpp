@@ -109,6 +109,9 @@ int init_opengl_state(app* state) {
 
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
+
+    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
+
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("ERROR: Could not init SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -153,6 +156,8 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         return SDL_APP_FAILURE;
     }
 
+    SDL_GL_SetSwapInterval(1);
+
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
         SDL_Log("ERROR: Failed to init glad");
         return SDL_APP_FAILURE;
@@ -161,8 +166,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     SDL_DisplayID dID = SDL_GetDisplayForWindow(state->window);
     const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode(dID);
 
-    state->dt = 1.0/mode->refresh_rate;
-    state->ref_rate = mode->refresh_rate;
+    float refresh_rate = (mode && mode->refresh_rate > 0.0f) ? mode->refresh_rate : 60.0f;
+    state->dt = 1.0 / refresh_rate;
+    state->ref_rate = refresh_rate;
 
     // I dont know why, but SDL's ABGR8 = GL_RGBA8
     SDL_Surface* converted_surf =
@@ -244,7 +250,14 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 SDL_AppResult SDL_AppIterate(void* appstate) {
     app* state = static_cast<app*>(appstate);
 
-    state->cam.update(state->dt, state->curs, Vec2(state->img_w, state->img_h), state->is_resetting);
+    // trying to fix zoom on X11 while built with vcpkg
+    static Uint64 last_time = 0;
+    Uint64 now = SDL_GetTicksNS();
+    float dt = (last_time > 0) ? static_cast<float>(now - last_time) / 1.0e9f : state->dt;
+    last_time = now;
+    if (dt > 0.05f) dt = 0.05f;
+
+    state->cam.update(dt, state->curs, Vec2(state->img_w, state->img_h), state->is_resetting);
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);

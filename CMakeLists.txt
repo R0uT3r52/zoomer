@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.21)
 project(zoomer LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -10,6 +10,8 @@ set(SHADER_FRAG "${CMAKE_CURRENT_SOURCE_DIR}/shaders/frag.glsl")
 
 set(GEN_SHADER_VERT "${CMAKE_CURRENT_BINARY_DIR}/shader_vertex.hpp")
 set(GEN_SHADER_FRAG "${CMAKE_CURRENT_BINARY_DIR}/shader_fragment.hpp")
+
+set(OpenGL_GL_PREFERENCE GLVND)
 
 add_custom_command(
     OUTPUT ${GEN_SHADER_VERT}

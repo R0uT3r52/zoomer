@@ -9,13 +9,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libglvnd-dev \
     libxcb1-dev libxau-dev libxdmcp-dev libdbus-1-dev libudev-dev \
     libasound2-dev libpulse-dev libjack-dev libsndio-dev \
-    libpipewire-0.3-dev libwayland-dev libdecor-0-dev liburing-dev zlib1g-dev \
+    libpipewire-0.3-dev libwayland-dev libdecor-0-dev liburing-dev zlib1g-dev xxd \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
 
 # Build SDL3
-RUN git clone --depth 1 --branch main https://github.com/libsdl-org/SDL.git && \
+RUN git clone --depth 1 --branch release-3.4.14 https://github.com/libsdl-org/SDL.git && \
     cd SDL && \
     cmake -S . -B build \
         -DCMAKE_BUILD_TYPE=Release \
@@ -27,7 +27,7 @@ RUN git clone --depth 1 --branch main https://github.com/libsdl-org/SDL.git && \
     cd .. && rm -rf SDL
 
 # Build SDL3_image
-RUN git clone --depth 1 --branch main https://github.com/libsdl-org/SDL_image.git && \
+RUN git clone --depth 1 --branch release-3.4.4 https://github.com/libsdl-org/SDL_image.git && \
     cd SDL_image && \
     cmake -S . -B build \
         -DCMAKE_BUILD_TYPE=Release \
@@ -40,7 +40,7 @@ RUN git clone --depth 1 --branch main https://github.com/libsdl-org/SDL_image.gi
     cd .. && rm -rf SDL_image
 
 # Build SDBUS-CPP
-RUN git clone --depth 1 --branch master https://github.com/Kistler-Group/sdbus-cpp.git && \
+RUN git clone --depth 1 --branch v2.3.1 https://github.com/Kistler-Group/sdbus-cpp.git && \
     cd sdbus-cpp && mkdir build && \
     cmake -S . -B build \
     -DCMAKE_BUILD_TYPE=Release \
@@ -85,11 +85,11 @@ COPY --from=app-builder /usr/local/lib/ /usr/local/lib/
 RUN ldconfig
 
 # Download linuxdeploy and appimagetool manually
-RUN wget --no-check-certificate https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage && \
+RUN wget --no-check-certificate https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage && \
     chmod +x linuxdeploy-x86_64.AppImage && \
-    wget --no-check-certificate https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage && \
+    wget --no-check-certificate https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage && \
     chmod +x appimagetool-x86_64.AppImage && \
-    wget --no-check-certificate https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64 && \
+    wget --no-check-certificate https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64 && \
     chmod +x runtime-x86_64
 
 COPY assets/zoomer.png /app/zoomer.png
