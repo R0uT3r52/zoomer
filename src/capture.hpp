@@ -2,7 +2,6 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_surface.h>
-#include <SDL3_image/SDL_image.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <sdbus-c++/sdbus-c++.h>

@@ -3,13 +3,12 @@ FROM ubuntu:22.04 AS app-builder
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential cmake meson libsystemd-dev pkg-config ninja-build pkg-config git wget ca-certificates \
+    build-essential cmake libsystemd-dev pkg-config pkg-config git wget ca-certificates \
     libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev \
-    libxi-dev libxss-dev libxtst-dev libxkbcommon-dev libdrm-dev libgbm-dev \
+    libxi-dev libxkbcommon-dev libdrm-dev libgbm-dev \
     libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libglvnd-dev \
-    libxcb1-dev libxau-dev libxdmcp-dev libdbus-1-dev libudev-dev \
-    libasound2-dev libpulse-dev libjack-dev libsndio-dev \
-    libpipewire-0.3-dev libwayland-dev libdecor-0-dev liburing-dev zlib1g-dev xxd \
+    libdbus-1-dev libudev-dev \
+    libwayland-dev libdecor-0-dev liburing-dev zlib1g-dev xxd \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
@@ -19,25 +18,21 @@ RUN git clone --depth 1 --branch release-3.4.14 https://github.com/libsdl-org/SD
     cd SDL && \
     cmake -S . -B build \
         -DCMAKE_BUILD_TYPE=Release \
+        -DSDL_AUDIO=OFF \
+        -DSDL_JOYSTICK=OFF \
+        -DSDL_HAPTIC=OFF \
+        -DSDL_HIDAPI=OFF \
+        -DSDL_POWER=OFF \
+        -DSDL_SENSOR=OFF \
+        -DSDL_CAMERA=OFF \
+        -DSDL_X11_XSCRNSAVER=OFF \
+        -DSDL_X11_XTEST=OFF \
         -DCMAKE_INSTALL_PREFIX=/usr/local \
         -DSDL_SHARED=ON \
         -DSDL_STATIC=OFF && \
     cmake --build build -j$(nproc) && \
     cmake --install build && \
     cd .. && rm -rf SDL
-
-# Build SDL3_image
-RUN git clone --depth 1 --branch release-3.4.4 https://github.com/libsdl-org/SDL_image.git && \
-    cd SDL_image && \
-    cmake -S . -B build \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX=/usr/local \
-        -DSDLIMAGE_SHARED=ON \
-        -DSDLIMAGE_STATIC=OFF \
-        -DSDLIMAGE_VENDORED=OFF && \
-    cmake --build build -j$(nproc) && \
-    cmake --install build && \
-    cd .. && rm -rf SDL_image
 
 # Build SDBUS-CPP
 RUN git clone --depth 1 --branch v2.3.1 https://github.com/Kistler-Group/sdbus-cpp.git && \
@@ -69,9 +64,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget file desktop-file-utils libglib2.0-0 ca-certificates curl \
     libx11-6 libxext6 libxrandr2 libxcursor1 libxfixes3 \
-    libxi6 libxss1 libxtst6 libxkbcommon0 libdrm2 libgbm1 \
+    libxi6 libxkbcommon0 libdrm2 libgbm1 \
     libgl1-mesa-glx libegl1-mesa libglvnd0 \
-    libasound2 libpulse0 libjack0 libsndio7.0 \
     libwayland-client0 libwayland-egl1 libdecor-0-0 \
     && rm -rf /var/lib/apt/lists/*
 

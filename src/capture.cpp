@@ -1,6 +1,7 @@
 #include "capture.hpp"
 #include <SDL3/SDL_surface.h>
-#include <SDL3_image/SDL_image.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
 #include <cstdint>
 #include <cstdlib>
 #include <chrono>
@@ -210,11 +211,20 @@ SDL_Surface* capture_wayland_commands(int* out_x, int* out_y) {
         "flameshot screen -p \"" + temp_file.string() + "\" >/dev/null 2>&1",
     };
 
+
+    int width, height, channels;
+
     for (const auto& cmd : commands) {
         int res = std::system(cmd.c_str());
         if (res == 0 && std::filesystem::exists(temp_file)) {
-            SDL_Surface* surf = IMG_Load(temp_file.string().c_str());
-            std::filesystem::remove(temp_file);
+            unsigned char* data = stbi_load(temp_file.string().c_str(), &width, &height, &channels, 4);
+            SDL_Surface* surf;
+            if (data) {
+                surf = SDL_CreateSurfaceFrom(width, height, SDL_PIXELFORMAT_RGBA32, data, width * 4);
+            } else {
+                SDL_Log("ERROR: Unable to load image data in wayland_commands");
+            }
+
             if (surf) {
                 SDL_Log("Wayland capture successful via command");
                 return surf;
@@ -237,9 +247,19 @@ SDL_Surface* capture_wayland(int* out_x, int* out_y) {
         return nullptr;
     }
 
-    SDL_Surface *surf = IMG_Load(file_path);
+    int width, height, channels;
+
+    unsigned char* data = stbi_load(file_path, &width, &height, &channels, 4);
+    SDL_Surface* surf;
+    if (data) {
+        surf = SDL_CreateSurfaceFrom(width, height, SDL_PIXELFORMAT_RGBA32, data, width * 4);
+    } else {
+        SDL_Log("ERROR: Unable to load image data in wayland_commands");
+    }
     if(!surf) {
         SDL_Log("ERROR: SDL Could not open image made by SDBUS screenshot method");
+        SDL_DestroySurface(surf);
+        stbi_image_free(data);
         return nullptr;
     }
 
