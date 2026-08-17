@@ -166,8 +166,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     SDL_DisplayID dID = SDL_GetDisplayForWindow(state->window);
     const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode(dID);
 
-    state->dt = 1.0/mode->refresh_rate;
-    state->ref_rate = mode->refresh_rate;
+    float refresh_rate = (mode && mode->refresh_rate > 0.0f) ? mode->refresh_rate : 60.0f;
+    state->dt = 1.0 / refresh_rate;
+    state->ref_rate = refresh_rate;
 
     // I dont know why, but SDL's ABGR8 = GL_RGBA8
     SDL_Surface* converted_surf =

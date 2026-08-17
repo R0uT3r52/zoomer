@@ -2,13 +2,13 @@
   "version": 3,
   "configurePresets": [
     {
-      "name": "default",
-      "displayName": "Default Config",
-      "description": "Standard build with vcpkg integration",
-      "binaryDir": "${sourceDir}/build",
+      "name": "windows",
+      "displayName": "Windows x64 (vcpkg)",
+      "description": "Build with vcpkg integration for Windows",
+      "binaryDir": "${sourceDir}/build-win",
       "generator": "Ninja",
       "cacheVariables": {
-        "VCPKG_TARGET_TRIPLET": "x64-linux",
+        "VCPKG_TARGET_TRIPLET": "x64-windows",
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
       }

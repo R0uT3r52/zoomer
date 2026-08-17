@@ -3,36 +3,63 @@ FROM ubuntu:22.04 AS app-builder
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential cmake ninja-build git curl zip unzip tar pkg-config ca-certificates \
-    autoconf autoconf-archive automake libtool libltdl-dev \
-    libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev \
-    libxft-dev libibus-1.0-dev \
-    xxd python3 python3-venv \
-    libxkbcommon-dev libwayland-dev libgl1-mesa-dev libegl1-mesa-dev \
-    libdbus-1-dev libsystemd-dev \
+    build-essential cmake meson libsystemd-dev pkg-config ninja-build pkg-config git wget ca-certificates \
+    libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev \
+    libxi-dev libxss-dev libxtst-dev libxkbcommon-dev libdrm-dev libgbm-dev \
+    libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libglvnd-dev \
+    libxcb1-dev libxau-dev libxdmcp-dev libdbus-1-dev libudev-dev \
+    libasound2-dev libpulse-dev libjack-dev libsndio-dev \
+    libpipewire-0.3-dev libwayland-dev libdecor-0-dev liburing-dev zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install vcpkg
-ENV VCPKG_ROOT=/opt/vcpkg
-RUN git clone https://github.com/microsoft/vcpkg.git /opt/vcpkg && \
-    /opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics
+WORKDIR /src
 
+# Build SDL3
+RUN git clone --depth 1 --branch main https://github.com/libsdl-org/SDL.git && \
+    cd SDL && \
+    cmake -S . -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr/local \
+        -DSDL_SHARED=ON \
+        -DSDL_STATIC=OFF && \
+    cmake --build build -j$(nproc) && \
+    cmake --install build && \
+    cd .. && rm -rf SDL
+
+# Build SDL3_image
+RUN git clone --depth 1 --branch main https://github.com/libsdl-org/SDL_image.git && \
+    cd SDL_image && \
+    cmake -S . -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr/local \
+        -DSDLIMAGE_SHARED=ON \
+        -DSDLIMAGE_STATIC=OFF \
+        -DSDLIMAGE_VENDORED=OFF && \
+    cmake --build build -j$(nproc) && \
+    cmake --install build && \
+    cd .. && rm -rf SDL_image
+
+# Build SDBUS-CPP
+RUN git clone --depth 1 --branch master https://github.com/Kistler-Group/sdbus-cpp.git && \
+    cd sdbus-cpp && mkdir build && \
+    cmake -S . -B build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DSDBUSCPP_BUILD_LIBSYSTEMD=OFF \
+    -DSDBUSCPP_BUILD_DOCS=OFF && \
+    cmake --build build -j$(nproc) && \
+    cmake --install build && \
+    cd .. && rm -rf sdbus-cpp
+
+RUN ldconfig
+
+COPY . /app
 WORKDIR /app
 
-# Copy first for layer caching
-COPY vcpkg.json vcpkg-configuration.json CMakePresets.json /app/
-
-# Pre-install vcpkg dependencies into /app/build/vcpkg_installed
-RUN /opt/vcpkg/vcpkg install \
-    --triplet x64-linux \
-    --x-manifest-root=/app \
-    --x-install-root=/app/build/vcpkg_installed
-
-# Copy application source
-COPY . /app
-
-# Build and install the app
-RUN cmake --preset default -DCMAKE_INSTALL_PREFIX=/usr && \
+# Build the app and install to AppDir
+RUN mkdir -p /app/build && rm -rf /app/build/* && \
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr && \
     cmake --build build -j$(nproc) && \
     DESTDIR=/app/AppDir cmake --install build
 
@@ -44,6 +71,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-6 libxext6 libxrandr2 libxcursor1 libxfixes3 \
     libxi6 libxss1 libxtst6 libxkbcommon0 libdrm2 libgbm1 \
     libgl1-mesa-glx libegl1-mesa libglvnd0 \
+    libasound2 libpulse0 libjack0 libsndio7.0 \
+    libwayland-client0 libwayland-egl1 libdecor-0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -51,7 +80,11 @@ WORKDIR /app
 # Copy AppDir
 COPY --from=app-builder /app/AppDir /app/AppDir
 
-# Download linuxdeploy and appimagetool
+# Copy built SDL3 libraries to system path
+COPY --from=app-builder /usr/local/lib/ /usr/local/lib/
+RUN ldconfig
+
+# Download linuxdeploy and appimagetool manually
 RUN wget --no-check-certificate https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage && \
     chmod +x linuxdeploy-x86_64.AppImage && \
     wget --no-check-certificate https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage && \
@@ -61,11 +94,11 @@ RUN wget --no-check-certificate https://github.com/linuxdeploy/linuxdeploy/relea
 
 COPY assets/zoomer.png /app/zoomer.png
 
-# Create desktop file
+# Create desktop file manually in the right place
 RUN mkdir -p /app/AppDir/usr/share/applications && \
     printf "[Desktop Entry]\nType=Application\nName=Zoomer\nExec=zoomer\nIcon=zoomer\nCategories=Utility;\nTerminal=false\n" > /app/AppDir/usr/share/applications/zoomer.desktop
 
-# Copy icon
+# Copy icon to the right place
 RUN mkdir -p /app/AppDir/usr/share/icons/hicolor/96x96/apps/ && \
     cp /app/zoomer.png /app/AppDir/usr/share/icons/hicolor/96x96/apps/zoomer.png && \
     cp /app/zoomer.png /app/AppDir/zoomer.png
@@ -73,11 +106,11 @@ RUN mkdir -p /app/AppDir/usr/share/icons/hicolor/96x96/apps/ && \
 ENV ARCH=x86_64
 ENV APPIMAGE_EXTRACT_AND_RUN=1
 
-# Use linuxdeploy to bundle dependencies
+# 1. Use linuxdeploy ONLY to deploy dependencies (no output plugin)
 RUN ./linuxdeploy-x86_64.AppImage --appdir /app/AppDir --executable /app/AppDir/usr/bin/zoomer
 
-# Generate AppImage
+# 2. Manually run appimagetool with pre-downloaded runtime
 RUN ./appimagetool-x86_64.AppImage --runtime-file runtime-x86_64 /app/AppDir Zoomer-x86_64.AppImage
 
-# Output AppImage build
+# output AppImage build
 CMD ["sh", "-c", "cp Zoomer*.AppImage /out/"]
