@@ -20,7 +20,7 @@ To build and run Zoomer, you need the following dependencies:
 
 - **C++20 Compiler** (GCC 11+ or Clang 13+)
 - **CMake** (3.21+) and **PkgConfig**
-- **SDL3** && **SDL3_image** (with PNG/JPEG support)
+- **SDL3**
 - **sdbus-c++** (for Wayland portal screenshot capture) && **libsystemd**
 - **OpenGL / Mesa** && **libX11** dev headers
 - **xxd** (for baking GLSL shaders into the executable)
@@ -29,20 +29,20 @@ To build and run Zoomer, you need the following dependencies:
 
 - **Arch Linux**:
   ```bash
-  sudo pacman -S gcc cmake pkgconf sdl3 sdl3_image sdbus-cpp libx11 mesa vim
+  sudo pacman -S gcc cmake pkgconf sdl3 sdbus-cpp libx11 mesa vim
   ```
 - **Fedora**:
   ```bash
-  sudo dnf install gcc-c++ cmake pkgconf-pkg-config SDL3-devel SDL3_image-devel sdbus-c++-devel libX11-devel mesa-libGL-devel xxd
+  sudo dnf install gcc-c++ cmake pkgconf-pkg-config SDL3-devel sdbus-c++-devel libX11-devel mesa-libGL-devel xxd
   ```
 - **Debian / Ubuntu**:
   ```bash
-  sudo apt install build-essential cmake pkg-config libsdl3-dev libsdl3-image-dev libsdbus-c++-dev libsystemd-dev libx11-dev libgl1-mesa-dev xxd
+  sudo apt install build-essential cmake pkg-config libsdl3-dev libsdbus-c++-dev libsystemd-dev libx11-dev libgl1-mesa-dev xxd
   ```
 > [!NOTE]
-> If `SDL3` or `SDL3_image` are missing from your distribution's repositories, build them from source or use the Docker environment below.
+> If `SDL3` is missing from your distribution's repositories, build it from source or use the Docker environment below.
 > 
-> If you encounter compilation errors (such as syntax mismatches), it is highly recommended to build `SDL3`, `SDL3_image`, and `sdbus-cpp` from source to ensure version compatibility. Used versions are provided in `Dockerfile`
+> If you encounter compilation errors (such as syntax mismatches), it is highly recommended to build `SDL3` and `sdbus-cpp` from source to ensure version compatibility. Used versions are provided in `Dockerfile`
 > 
 > Alternatively, you can use the provided Docker container to automatically build the application as an AppImage.
 
