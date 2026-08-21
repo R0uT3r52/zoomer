@@ -35,7 +35,6 @@ find_package(Threads REQUIRED)
 add_executable(zoomer
     src/main.cpp
     src/shader.cpp
-    src/capture.cpp
     src/glad.c
     ${GEN_SHADER_VERT}
     ${GEN_SHADER_FRAG}
@@ -58,6 +57,7 @@ if(UNIX AND NOT APPLE)
     pkg_check_modules(Systemd REQUIRED IMPORTED_TARGET libsystemd)
     find_package(sdbus-c++ REQUIRED)
 
+    target_sources(zoomer PRIVATE src/capture.cpp)
     target_include_directories(zoomer PRIVATE ${X11_INCLUDE_DIRS})
     target_link_libraries(zoomer PRIVATE
         ${X11_LIBRARIES}
@@ -65,6 +65,7 @@ if(UNIX AND NOT APPLE)
         PkgConfig::Systemd
     )
 elseif(WIN32)
+    target_sources(zoomer PRIVATE src/capture_win.cpp)
     # Windows libs for screen capture
 endif()
 

@@ -116,8 +116,9 @@ int init_opengl_state(app* state) {
 }
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
-    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
-
+    #ifndef _WIN32
+        SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
+    #endif
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("ERROR: Could not init SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;

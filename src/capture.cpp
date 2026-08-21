@@ -1,6 +1,14 @@
 #include "capture.hpp"
 
 #include <SDL3/SDL_surface.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <sdbus-c++/Error.h>
+#include <sdbus-c++/IConnection.h>
+#include <sdbus-c++/IProxy.h>
+#include <sdbus-c++/Types.h>
+#include <sdbus-c++/sdbus-c++.h>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <chrono>
 #include <cstdint>
@@ -10,6 +18,15 @@
 #include <memory>
 
 #include "stb/stb_image.h"
+
+enum class Session { X11, Wayland, Unknown };
+
+Session detect_session();
+int sdbus_screenshot(char* path_to_file);
+SDL_Surface* capture_x11(int* out_x = nullptr, int* out_y = nullptr);
+SDL_Surface* capture_wayland(int* out_x = nullptr, int* out_y = nullptr);
+SDL_Surface* capture_wayland_commands(int* out_x, int* out_y);
+
 
 Session detect_session() {
     const char* s = getenv("XDG_SESSION_TYPE");
