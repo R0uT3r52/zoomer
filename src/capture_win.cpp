@@ -14,7 +14,6 @@ SDL_Surface* capture_gdi(int* out_x, int* out_y) {
     HDC hdc = GetDC(NULL);
     HDC hDest = CreateCompatibleDC(hdc);
 
-
     int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
     int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
 
@@ -39,9 +38,10 @@ SDL_Surface* capture_gdi(int* out_x, int* out_y) {
     bmi.bmiHeader.biCompression = BI_RGB;
 
     surf = SDL_CreateSurface(width, height, SDL_PIXELFORMAT_ARGB8888);
-    
+
     if (!surf) {
-        SDL_Log("ERROR: Unable to create surface in windows capture: %s", SDL_GetError());
+        SDL_Log("ERROR: Unable to create surface in windows capture: %s",
+                SDL_GetError());
         ReleaseDC(NULL, hdc);
         DeleteDC(hDest);
         DeleteObject(hbDesktop);
@@ -51,7 +51,8 @@ SDL_Surface* capture_gdi(int* out_x, int* out_y) {
     SDL_LockSurface(surf);
 
     // get pixel data from the HBITMAP into our buffer
-    if (!GetDIBits(hdc, hbDesktop, 0, bm.bmHeight, surf->pixels, &bmi, DIB_RGB_COLORS)) {
+    if (!GetDIBits(hdc, hbDesktop, 0, bm.bmHeight, surf->pixels, &bmi,
+                   DIB_RGB_COLORS)) {
         SDL_Log("ERROR: Unable to capture screenshot in capture windows");
 
         SDL_UnlockSurface(surf);
@@ -64,9 +65,9 @@ SDL_Surface* capture_gdi(int* out_x, int* out_y) {
     }
 
     SDL_UnlockSurface(surf);
-    
+
     // release the desktop context
-    // and delete the context 
+    // and delete the context
     ReleaseDC(NULL, hdc);
     DeleteDC(hDest);
     DeleteObject(hbDesktop);
@@ -74,9 +75,7 @@ SDL_Surface* capture_gdi(int* out_x, int* out_y) {
     return surf;
 }
 
-
 SDL_Surface* capture_screenshot(int* out_x, int* out_y) {
-
     // windows implementation
 
     SDL_Surface* result = capture_gdi(out_x, out_y);

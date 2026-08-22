@@ -116,9 +116,9 @@ int init_opengl_state(app* state) {
 }
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
-    #ifndef _WIN32
-        SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
-    #endif
+#ifndef _WIN32
+    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
+#endif
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("ERROR: Could not init SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -146,8 +146,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     // on Windows creating fullscreen window
     // or window with the monitor size
     // causes DWM to produce a ~1-2ms black "flash" (black screen)
-    // 
-    // To prevent this, we create a window with higher dimensions (+1px is enough)
+    //
+    // To prevent this, we create a window with higher dimensions (+1px is
+    // enough)
     state->window = SDL_CreateWindow(
         "zoomer", state->img_w, state->img_h + 1,
         SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL | SDL_WINDOW_ALWAYS_ON_TOP);

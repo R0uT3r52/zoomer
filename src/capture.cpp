@@ -27,7 +27,6 @@ SDL_Surface* capture_x11(int* out_x = nullptr, int* out_y = nullptr);
 SDL_Surface* capture_wayland(int* out_x = nullptr, int* out_y = nullptr);
 SDL_Surface* capture_wayland_commands(int* out_x, int* out_y);
 
-
 Session detect_session() {
     const char* s = getenv("XDG_SESSION_TYPE");
     if (s) {
