@@ -66,6 +66,8 @@ if(UNIX AND NOT APPLE)
     )
 elseif(WIN32)
     target_sources(zoomer PRIVATE src/capture_win.cpp)
+    set_target_properties(zoomer PROPERTIES WIN32_EXECUTABLE TRUE) # removes the cmd spawn
+
     # Windows libs for screen capture
 endif()
 

@@ -142,9 +142,20 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     state->img_w = surf->w;
     state->img_h = surf->h;
 
+#ifdef _WIN32
+    // on Windows creating fullscreen window
+    // or window with the monitor size
+    // causes DWM to produce a ~1-2ms black "flash" (black screen)
+    // 
+    // To prevent this, we create a window with higher dimensions (+1px is enough)
+    state->window = SDL_CreateWindow(
+        "zoomer", state->img_w, state->img_h + 1,
+        SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL | SDL_WINDOW_ALWAYS_ON_TOP);
+#else
     state->window = SDL_CreateWindow(
         "zoomer", state->img_w, state->img_h,
         SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
+#endif
     if (!state->window) {
         SDL_Log("ERROR: Could not create a window: %s", SDL_GetError());
         return SDL_APP_FAILURE;
