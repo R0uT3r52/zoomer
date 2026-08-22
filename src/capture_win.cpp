@@ -38,32 +38,33 @@ SDL_Surface* capture_gdi(int* out_x, int* out_y) {
     bmi.bmiHeader.biBitCount = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
 
-    // mem buff for pixels
-    int pitch = bm.bmWidth * 4;
-    void* pixels = SDL_malloc(pitch * bm.bmHeight);
-    if (!pixels) {
+    surf = SDL_CreateSurface(width, height, SDL_PIXELFORMAT_ARGB8888);
+    
+    if (!surf) {
+        SDL_Log("ERROR: Unable to create surface in windows capture: %s", SDL_GetError());
         ReleaseDC(NULL, hdc);
-        return NULL;
+        DeleteDC(hDest);
+        DeleteObject(hbDesktop);
+        return nullptr;
     }
+
+    SDL_LockSurface(surf);
 
     // get pixel data from the HBITMAP into our buffer
-    if (!GetDIBits(hdc, hbDesktop, 0, bm.bmHeight, pixels, &bmi,
-                   DIB_RGB_COLORS)) {
-        SDL_free(pixels);
+    if (!GetDIBits(hdc, hbDesktop, 0, bm.bmHeight, surf->pixels, &bmi, DIB_RGB_COLORS)) {
+        SDL_Log("ERROR: Unable to capture screenshot in capture windows");
+
+        SDL_UnlockSurface(surf);
+        SDL_DestroySurface(surf);
+
         ReleaseDC(NULL, hdc);
-        return NULL;
+        DeleteDC(hDest);
+        DeleteObject(hbDesktop);
+        return nullptr;
     }
 
-
+    SDL_UnlockSurface(surf);
     
-    surf = SDL_CreateSurfaceFrom(
-        bm.bmWidth, bm.bmHeight, SDL_PIXELFORMAT_ARGB8888, pixels, pitch);
-
-    if (!surf) {
-        SDL_free(pixels);
-        return NULL;
-    }
-
     // release the desktop context
     // and delete the context 
     ReleaseDC(NULL, hdc);
