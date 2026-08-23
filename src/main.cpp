@@ -116,8 +116,9 @@ int init_opengl_state(app* state) {
 }
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
+#ifndef _WIN32
     SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
-
+#endif
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("ERROR: Could not init SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -141,9 +142,21 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     state->img_w = surf->w;
     state->img_h = surf->h;
 
+#ifdef _WIN32
+    // on Windows creating fullscreen window
+    // or window with the monitor size
+    // causes DWM to produce a ~1-2ms black "flash" (black screen)
+    //
+    // To prevent this, we create a window with higher dimensions (+1px is
+    // enough)
+    state->window = SDL_CreateWindow(
+        "zoomer", state->img_w, state->img_h + 1,
+        SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_INPUT_FOCUS);
+#else
     state->window = SDL_CreateWindow(
         "zoomer", state->img_w, state->img_h,
         SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
+#endif
     if (!state->window) {
         SDL_Log("ERROR: Could not create a window: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -166,6 +179,16 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
         SDL_Log("ERROR: Failed to init glad");
+        return SDL_APP_FAILURE;
+    }
+
+    const char* gl_version = (const char*)glGetString(GL_VERSION);
+    const char* gl_renderer = (const char*)glGetString(GL_RENDERER);
+    int gl_major = 0, gl_minor = 0;
+    int code = sscanf(gl_version, "%d.%d", &gl_major, &gl_minor);
+
+    if (!gl_version ||code != 2 || gl_major < 3 || (gl_major >= 3 && gl_minor < 3)) {
+        SDL_Log("ERROR: OpenGL 3.3 or higher required, but only %s was provided", gl_version ? gl_version : "<unknown>");
         return SDL_APP_FAILURE;
     }
 

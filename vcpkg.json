@@ -1,11 +1,20 @@
 {
   "name": "zoomer",
-  "version-string": "0.4.0",
   "dependencies": [
-    "sdl3",
+    {
+      "name": "sdl3",
+      "version>=": "3.4.14"
+    },
     {
       "name": "sdbus-cpp",
       "platform": "linux"
     }
-  ]
+  ],
+  "overrides": [
+    {
+      "name": "sdl3",
+      "version": "3.4.14"
+    }
+  ],
+  "builtin-baseline": "127402f1c75bb3d5ff6bce04b285faa4930a5aca"
 }
