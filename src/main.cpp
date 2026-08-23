@@ -151,7 +151,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     // enough)
     state->window = SDL_CreateWindow(
         "zoomer", state->img_w, state->img_h + 1,
-        SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL | SDL_WINDOW_ALWAYS_ON_TOP);
+        SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_INPUT_FOCUS);
 #else
     state->window = SDL_CreateWindow(
         "zoomer", state->img_w, state->img_h,

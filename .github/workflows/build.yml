@@ -33,3 +33,39 @@ jobs:
           files: out/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  build-and-release-windows:
+    runs-on: windows-latest
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Checkout vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: "microsoft/vcpkg"
+          path: "vcpkg"
+          ref: "127402f1c75bb3d5ff6bce04b285faa4930a5aca"
+
+      - name: Install vcpkg
+        run: '& "$env:VCPKG_ROOT/bootstrap-vcpkg.bat"'
+
+      - name: Create output directory
+        run: mkdir -p ${{ github.workspace }}/out
+
+      - name: Configure cmake
+        run: cmake --preset windows
+
+      - name: Build
+        run: cmake --build --preset windows-release
+
+      - name: Build
+        run: cp build-win/Releases/zoomer.exe ${{ github.workspace }}/out
+
+      - name: Upload to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
