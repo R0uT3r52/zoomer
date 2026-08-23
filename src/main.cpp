@@ -182,6 +182,16 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         return SDL_APP_FAILURE;
     }
 
+    const char* gl_version = (const char*)glGetString(GL_VERSION);
+    const char* gl_renderer = (const char*)glGetString(GL_RENDERER);
+    int gl_major = 0, gl_minor = 0;
+    int code = sscanf(gl_version, "%d.%d", &gl_major, &gl_minor);
+
+    if (!gl_version ||code != 2 || gl_major < 3 || (gl_major >= 3 && gl_minor < 3)) {
+        SDL_Log("ERROR: OpenGL 3.3 or higher required, but only %s was provided", gl_version ? gl_version : "<unknown>");
+        return SDL_APP_FAILURE;
+    }
+
     SDL_DisplayID dID = SDL_GetDisplayForWindow(state->window);
     const SDL_DisplayMode* mode = SDL_GetDesktopDisplayMode(dID);
 
