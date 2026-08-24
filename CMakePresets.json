@@ -6,7 +6,15 @@
       "displayName": "Windows x64 (vcpkg)",
       "description": "Build with vcpkg integration for Windows",
       "binaryDir": "${sourceDir}/build-win",
-      "generator": "Visual Studio 17 2022",
+      "generator": "Ninja",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "toolset": {
+        "value": "host=x64",
+        "strategy": "external"
+      },
       "cacheVariables": {
         "VCPKG_TARGET_TRIPLET": "x64-windows-static-md",
         "CMAKE_BUILD_TYPE": "Release",

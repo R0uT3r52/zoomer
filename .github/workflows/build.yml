@@ -1,4 +1,4 @@
-name: Build and Release AppImage
+name: Build and Release
 
 on:
   push:
@@ -54,14 +54,19 @@ jobs:
       - name: Create output directory
         run: mkdir -p ${{ github.workspace }}/out
 
+      - name: Setup MSVC Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Configure cmake
         run: cmake --preset windows
 
       - name: Build
         run: cmake --build --preset windows-release
 
-      - name: Build
-        run: cp build-win/Releases/zoomer.exe ${{ github.workspace }}/out
+      - name: Collect build artifacts
+        run: cp build-win/zoomer.exe ${{ github.workspace }}/out/zoomer-x64.exe
 
       - name: Upload to GitHub Releases
         uses: softprops/action-gh-release@v2
