@@ -8,6 +8,7 @@
 #include <sdbus-c++/IProxy.h>
 #include <sdbus-c++/Types.h>
 #include <sdbus-c++/sdbus-c++.h>
+#include <string>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <chrono>
@@ -152,10 +153,25 @@ SDL_Surface* capture_x11(int* out_x, int* out_y) {
 std::unique_ptr<sdbus::IConnection> connection;
 
 std::string uri_to_path(const std::string uri) {
-    if (uri.rfind("file://", 0) == 0) {
-        return uri.substr(7);
+    std::string correct_path;
+
+    // To prevent reallocations
+    correct_path.reserve(uri.length());
+
+    for (int i = 0; i < uri.length(); i++) {
+        if (uri[i] == '%') {
+            char val = std::stoi(uri.substr(i+1, 2), nullptr, 16);
+            correct_path += val;
+            i += 2;
+        } else {
+            correct_path += uri[i];
+        }
     }
-    return uri;
+
+    if (correct_path.rfind("file://", 0) == 0) {
+        correct_path = correct_path.substr(7);
+    }
+    return correct_path;
 }
 
 int sdbus_screenshot(char* path_to_file) {
