@@ -174,7 +174,7 @@ std::string uri_to_path(const std::string uri) {
     return correct_path;
 }
 
-int sdbus_screenshot(char* path_to_file) {
+int sdbus_screenshot(std::string& path_to_file) {
     connection = sdbus::createBusConnection();
 
     sdbus::ServiceName svc_name{"org.freedesktop.portal.Desktop"};
@@ -233,7 +233,7 @@ int sdbus_screenshot(char* path_to_file) {
 
     uri = uri_to_path(uri);
 
-    strncpy(path_to_file, uri.c_str(), 512);
+    path_to_file = uri;
 
     return 0;
 }
@@ -296,7 +296,7 @@ SDL_Surface* capture_wayland(int* out_x, int* out_y) {
     if (out_x) *out_x = 0;
     if (out_y) *out_y = 0;
 
-    char file_path[512];
+    std::string file_path;
 
     if (sdbus_screenshot(file_path) != 0) {
         SDL_Log("SDBUS Screenshot was unable to make screenshot");
@@ -304,7 +304,7 @@ SDL_Surface* capture_wayland(int* out_x, int* out_y) {
     }
 
     int width, height, channels;
-    unsigned char* data = stbi_load(file_path, &width, &height, &channels, 4);
+    unsigned char* data = stbi_load(file_path.c_str(), &width, &height, &channels, 4);
 
     SDL_Surface* surf = nullptr;
     if (data) {
@@ -316,7 +316,7 @@ SDL_Surface* capture_wayland(int* out_x, int* out_y) {
         }
         stbi_image_free(data);
     } else {
-        SDL_Log("ERROR: Unable to load image data from %s", file_path);
+        SDL_Log("ERROR: Unable to load image data from %s", file_path.c_str());
     }
 
     std::filesystem::remove(file_path);
