@@ -8,6 +8,12 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <string>
 
-SDL_Surface* capture_screenshot(int* out_x = nullptr, int* out_y = nullptr);
+struct capture_attempt{
+  SDL_Surface *surf;
+  std::string reason;
+  explicit operator bool() {return surf != nullptr;}
+};
+capture_attempt capture_screenshot(int* out_x = nullptr, int* out_y = nullptr);
 std::string uri_to_path(const std::string uri);

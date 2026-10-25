@@ -1,5 +1,6 @@
 #include "capture.hpp"
 
+#include <SDL3/SDL_log.h>
 #include <SDL3/SDL_surface.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -17,16 +18,18 @@
 #include <cstring>
 #include <filesystem>
 #include <memory>
+#include <vector>
 
 #include "stb/stb_image.h"
 
 enum class Session { X11, Wayland, Unknown };
 
+
 Session detect_session();
-int sdbus_screenshot(char* path_to_file);
-SDL_Surface* capture_x11(int* out_x = nullptr, int* out_y = nullptr);
-SDL_Surface* capture_wayland(int* out_x = nullptr, int* out_y = nullptr);
-SDL_Surface* capture_wayland_commands(int* out_x, int* out_y);
+int sdbus_screenshot(std::string& path_to_file, std::string& reason);
+capture_attempt capture_x11(int* out_x = nullptr, int* out_y = nullptr);
+capture_attempt capture_wayland(int* out_x = nullptr, int* out_y = nullptr);
+capture_attempt capture_wayland_commands(int* out_x, int* out_y);
 
 Session detect_session() {
     const char* s = getenv("XDG_SESSION_TYPE");
@@ -40,11 +43,13 @@ Session detect_session() {
     return Session::Unknown;
 }
 
-SDL_Surface* capture_x11(int* out_x, int* out_y) {
+capture_attempt capture_x11(int* out_x, int* out_y) {
     Display* dpy = XOpenDisplay(nullptr);
+    std::string reason = "";
+
     if (!dpy) {
-        SDL_Log("ERROR: X11 Could not open display");
-        return nullptr;
+        reason = "Could not open display";
+        return {nullptr, reason};
     }
 
     float mouse_x = 0, mouse_y = 0;
@@ -89,16 +94,15 @@ SDL_Surface* capture_x11(int* out_x, int* out_y) {
 
     if (!xi) {
         XCloseDisplay(dpy);
-        SDL_Log("ERROR: X11 XGetImage failed");
-        return nullptr;
+        reason = "X11 XGetImage failed";
+        return {nullptr, reason};
     }
 
     if (xi->bits_per_pixel != 32 && xi->bits_per_pixel != 24) {
-        SDL_Log("ERROR: X11 unsupported color depth: %d bpp",
-                xi->bits_per_pixel);
         XDestroyImage(xi);
         XCloseDisplay(dpy);
-        return nullptr;
+        reason = "X11 unsupported color depth: " + std::to_string(xi->bits_per_pixel) + "bpp";
+        return {nullptr, reason};
     }
 
     SDL_Surface* surf =
@@ -106,7 +110,8 @@ SDL_Surface* capture_x11(int* out_x, int* out_y) {
     if (!surf) {
         XDestroyImage(xi);
         XCloseDisplay(dpy);
-        return nullptr;
+        reason = "SDL surface was not created";
+        return {nullptr, reason};
     }
 
     auto shift = [](uint32_t m) {
@@ -145,9 +150,8 @@ SDL_Surface* capture_x11(int* out_x, int* out_y) {
 
     XDestroyImage(xi);
     XCloseDisplay(dpy);
-    SDL_Log("X11 capture successful (%dx%d) at offset (%d,%d)", surf->w,
-            surf->h, bounds.x, bounds.y);
-    return surf;
+    SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "X11 capture successful (%dx%d) at offset (%d,%d)", surf->w, surf->h, bounds.x, bounds.y);
+    return {surf, ""};
 }
 
 std::unique_ptr<sdbus::IConnection> connection;
@@ -174,7 +178,7 @@ std::string uri_to_path(const std::string uri) {
     return correct_path;
 }
 
-int sdbus_screenshot(std::string& path_to_file) {
+int sdbus_screenshot(std::string& path_to_file, std::string& reason) {
     connection = sdbus::createBusConnection();
 
     sdbus::ServiceName svc_name{"org.freedesktop.portal.Desktop"};
@@ -195,7 +199,7 @@ int sdbus_screenshot(std::string& path_to_file) {
             .withArguments(parent_window, options)
             .storeResultsTo(request_path);
     } catch (const sdbus::Error& e) {
-        SDL_Log("ERROR: Calling portal error: %s", e.getMessage().c_str());
+        reason = "Calling portal error: " + e.getMessage();
         return 1;
     }
 
@@ -214,11 +218,12 @@ int sdbus_screenshot(std::string& path_to_file) {
                     std::string file_path = results["uri"].get<std::string>();
                     promise.set_value(file_path);
                 } else {
-                    SDL_Log("WARN: No file path (uri) were observed");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "No file path (uri) were observed");
+                    promise.set_value("empty_path");
                 }
             } else {
-                promise.set_value("");
-                SDL_Log("ERROR: Looks like user cancelled the request");
+                promise.set_value("user_cancelled");
+                SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Looks like user cancelled the request");
             }
 
             connection->leaveEventLoop();
@@ -227,8 +232,13 @@ int sdbus_screenshot(std::string& path_to_file) {
     connection->enterEventLoop();
 
     std::string uri = path_future.get();
-    if (uri.length() == 0) {
-        SDL_Log("WARN: file uri path is an empty string");
+    if (uri == "empty_path") {
+        reason = "file uri path is empty";
+        return 1;
+    }
+    if (uri == "user_cancelled") {
+        reason = "user cancelled the screenshot";
+        return 1;
     }
 
     uri = uri_to_path(uri);
@@ -238,9 +248,11 @@ int sdbus_screenshot(std::string& path_to_file) {
     return 0;
 }
 
-SDL_Surface* capture_wayland_commands(int* out_x, int* out_y) {
+capture_attempt capture_wayland_commands(int* out_x, int* out_y) {
     if (out_x) *out_x = 0;
     if (out_y) *out_y = 0;
+
+    std::string reason = "";
 
     auto now = std::chrono::steady_clock::now().time_since_epoch().count();
     std::filesystem::path temp_file =
@@ -269,38 +281,38 @@ SDL_Surface* capture_wayland_commands(int* out_x, int* out_y) {
                 if (surf) {
                     memcpy(surf->pixels, data, width * height * 4);
                 } else {
-                    SDL_Log(
-                        "ERROR: SDL Could not create surface in "
-                        "wayland_commands");
+                    reason = "SDL could not create surface in wayland_commands";
                 }
                 stbi_image_free(data);
             } else {
-                SDL_Log("ERROR: Unable to load image data from %s",
-                        temp_file.c_str());
+                reason = "Unable to load image data from " + temp_file.string();
             }
 
             std::filesystem::remove(temp_file);
 
             if (surf) {
-                SDL_Log("Wayland capture successful via command");
-                return surf;
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Wayland capture successful via command");
+                return {surf, ""};
             }
         }
     }
 
-    SDL_Log("Wayland: native capture commands failed");
-    return nullptr;
+    if (reason.empty()) {
+        reason  = "unable to call screenshot utilities";
+    }
+    return {nullptr, reason};
 }
 
-SDL_Surface* capture_wayland(int* out_x, int* out_y) {
+capture_attempt capture_wayland(int* out_x, int* out_y) {
     if (out_x) *out_x = 0;
     if (out_y) *out_y = 0;
 
     std::string file_path;
+    std::string reason = "";
 
-    if (sdbus_screenshot(file_path) != 0) {
-        SDL_Log("SDBUS Screenshot was unable to make screenshot");
-        return nullptr;
+
+    if (sdbus_screenshot(file_path, reason) != 0) {
+        return {nullptr, reason};
     }
 
     int width, height, channels;
@@ -312,52 +324,104 @@ SDL_Surface* capture_wayland(int* out_x, int* out_y) {
         if (surf) {
             memcpy(surf->pixels, data, width * height * 4);
         } else {
-            SDL_Log("ERROR: SDL Could not create surface in capture_wayland");
+            reason = "SDL could not create surface in capture_wayland";
         }
         stbi_image_free(data);
     } else {
-        SDL_Log("ERROR: Unable to load image data from %s", file_path.c_str());
+        reason = "Unable to load image data from " + file_path;
     }
 
     std::filesystem::remove(file_path);
-    return surf;
+    return {surf, reason};
 }
 
-SDL_Surface* capture_screenshot(int* out_x, int* out_y) {
+capture_attempt capture_screenshot(int* out_x, int* out_y) {
     Session session = detect_session();
-    SDL_Surface* surf = nullptr;
+    std::string fld;
 
     if (session == Session::Wayland) {
-        SDL_Log("Attempting Wayland screen capture via Dbus...");
-        surf = capture_wayland(out_x, out_y);
-        if (!surf) {
-            SDL_Log(
-                "Wayland capture via Dbus failed, attempting CLI tools "
-                "fallback...");
-            surf = capture_wayland_commands(out_x, out_y);
+        SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Attempting Wayland screen capture");
+
+        capture_attempt r = capture_wayland(out_x, out_y);
+
+        if (r) {
+            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Wayland] screen capture via Dbus successful");
+            return r;
         }
-        if (!surf) {
-            SDL_Log("Wayland capture failed, attempting X11 fallback");
-            surf = capture_x11(out_x, out_y);
+        fld += ("wayland: " + r.reason + " | ");
+
+        r = capture_wayland_commands(out_x, out_y);
+        if (r) {
+            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Wayland] screen capture via commands successful");
+            return r;
         }
+        fld += ("wayland_commands: " + r.reason + " | ");
+
+        r = capture_x11(out_x, out_y);
+        if (r) {
+            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Wayland] screen capture via X11 fallback successful");
+            return r;
+        }
+        fld += ("x11: " + r.reason);
+
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "[Wayland] Screen capture failed: %s", fld.c_str());
+
+        return {nullptr, fld};
+
     } else if (session == Session::X11) {
-        SDL_Log("Attempting X11 screen capture...");
-        surf = capture_x11(out_x, out_y);
-        if (!surf) {
-            SDL_Log("X11 capture failed, attempting Wayland Dbus fallback...");
-            surf = capture_wayland(out_x, out_y);
+        SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Attempting X11 screen capture");
+
+        capture_attempt r = capture_x11(out_x, out_y);
+
+        if (r) {
+            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[X11] screen capture successful");
+            return r;
         }
-        if (!surf) {
-            SDL_Log(
-                "X11 capture failed, attempting Wayland commands fallback...");
-            surf = capture_wayland_commands(out_x, out_y);
+        fld += ("X11: " + r.reason + " | ");
+
+        r = capture_wayland(out_x, out_y);
+        if (r) {
+            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[X11] screen capture via dbus successful");
+            return r;
         }
+        fld += ("wayland: " + r.reason + " | ");
+
+        r = capture_wayland_commands(out_x, out_y);
+        if (r) {
+            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[X11] screen capture via wayland_commands successful");
+            return r;
+        }
+        fld += ("wayland_commands: " + r.reason);
+
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "[X11] Screen capture failed: %s", fld.c_str());
+
+        return {nullptr, fld};
     } else {
-        SDL_Log("Session unknown, trying Wayland capture then X11 capture...");
-        surf = capture_wayland(out_x, out_y);
-        if (!surf) surf = capture_wayland_commands(out_x, out_y);
-        if (!surf) surf = capture_x11(out_x, out_y);
+        SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Session unknown, trying Wayland capture then X11 capture");
+
+        capture_attempt r = capture_wayland(out_x, out_y);
+        if (r) {
+            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Unknown] Wayland dbus capture successful");
+            return r;
+        }
+        fld += ("wayland: " + r.reason + " | ");
+
+        r = capture_wayland_commands(out_x, out_y);
+        if (r) {
+            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Unknown] Wayland commands capture successful");
+            return r;
+        }
+        fld += ("wayland_commands: " + r.reason + " | ");
+
+        r = capture_x11(out_x, out_y);
+        if (r) {
+            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Unknown] X11 native capture successful");
+            return r;
+        }
+        fld += ("X11: " + r.reason);
+
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "[Unknown] Screen capture failed: %s", fld.c_str());
+        return {nullptr, fld};
     }
 
-    return surf;
 }
