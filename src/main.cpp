@@ -4,6 +4,8 @@
 #include <SDL3/SDL_oldnames.h>
 #include <SDL3/SDL_surface.h>
 
+#include <cstring>
+
 #define SDL_MAIN_USE_CALLBACKS 1
 
 #include <SDL3/SDL_error.h>
@@ -38,6 +40,7 @@ struct app {
     int currentZoomGLLocation = -1;
 };
 
+// clang-format off
 float vertices[] = {
     // Coordinates          // Colors (RGB)       // Texture
     -1.0f,  1.0f, 0.0f,     0.0f, 0.0f, 0.0f,     0.0f, 0.0f,
@@ -48,6 +51,7 @@ float vertices[] = {
      1.0f,  1.0f, 0.0f,     0.0f, 0.0f, 0.0f,     1.0f, 0.0f,
      1.0f, -1.0f, 0.0f,     0.0f, 0.0f, 0.0f,     1.0f, 1.0f,
 };
+// clang-format on
 
 int init_opengl_state(app* state) {
     // unsigned int VAO;
@@ -81,9 +85,9 @@ int init_opengl_state(app* state) {
                             (const char*)frag_glsl, frag_glsl_len, shader_logs);
 
     if (!state->program) {
-        SDL_Log(
-            "ERROR: Compiling shaders or linking shader program ended with "
-            "error: %s",
+        SDL_LogError(
+            SDL_LOG_CATEGORY_APPLICATION,
+            "Compiling shaders or linking shader program ended with error: %s",
             shader_logs);
         return 0;
     }
@@ -115,13 +119,30 @@ int init_opengl_state(app* state) {
     return 1;
 }
 
+// Main function
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 #ifndef _WIN32
     SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
 #endif
     if (!SDL_Init(SDL_INIT_VIDEO)) {
-        SDL_Log("ERROR: Could not init SDL: %s", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not init SDL: %s",
+                     SDL_GetError());
         return SDL_APP_FAILURE;
+    }
+
+    bool debug_mode = false;
+
+    for (int i = 1; i < argc; i++) {
+        if (std::strcmp(argv[i], "--debug") == 0) {
+            debug_mode = true;
+            break;
+        }
+    }
+
+    if (debug_mode) {
+        SDL_SetLogPriorities(SDL_LOG_PRIORITY_DEBUG);
+    } else {
+        SDL_SetLogPriorities(SDL_LOG_PRIORITY_WARN);
     }
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -133,14 +154,13 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     *appstate = state;
 
     int screen_x = 0, screen_y = 0;
-    SDL_Surface* surf = capture_screenshot(&screen_x, &screen_y);
-    if (!surf) {
-        SDL_Log("ERROR: Could not capture screenshot on X11 or Wayland");
+    capture_attempt at = capture_screenshot(&screen_x, &screen_y);
+    if (!at) {
         return SDL_APP_FAILURE;
     }
 
-    state->img_w = surf->w;
-    state->img_h = surf->h;
+    state->img_w = at.surf->w;
+    state->img_h = at.surf->h;
 
 #ifdef _WIN32
     // on Windows creating fullscreen window
@@ -149,16 +169,18 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     //
     // To prevent this, we create a window with higher dimensions (+1px is
     // enough)
-    state->window = SDL_CreateWindow(
-        "zoomer", state->img_w, state->img_h + 1,
-        SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_INPUT_FOCUS);
+    state->window =
+        SDL_CreateWindow("zoomer", state->img_w, state->img_h + 1,
+                         SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL |
+                             SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_INPUT_FOCUS);
 #else
     state->window = SDL_CreateWindow(
         "zoomer", state->img_w, state->img_h,
         SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
 #endif
     if (!state->window) {
-        SDL_Log("ERROR: Could not create a window: %s", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "Could not create a window: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
@@ -166,19 +188,21 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     state->gl_ctx = SDL_GL_CreateContext(state->window);
     if (!state->gl_ctx) {
-        SDL_Log("ERROR: Could not create GL context: %s", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "Could not create GL context: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
     if (!SDL_GL_MakeCurrent(state->window, state->gl_ctx)) {
-        SDL_Log("ERROR: GL_MakeCurrent exited with error: %s", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "GL_MakeCurrent exited with error: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
     SDL_GL_SetSwapInterval(1);
 
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-        SDL_Log("ERROR: Failed to init glad");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to init glad");
         return SDL_APP_FAILURE;
     }
 
@@ -187,8 +211,11 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     int gl_major = 0, gl_minor = 0;
     int code = sscanf(gl_version, "%d.%d", &gl_major, &gl_minor);
 
-    if (!gl_version ||code != 2 || gl_major < 3 || (gl_major >= 3 && gl_minor < 3)) {
-        SDL_Log("ERROR: OpenGL 3.3 or higher required, but only %s was provided", gl_version ? gl_version : "<unknown>");
+    if (!gl_version || code != 2 || gl_major < 3 ||
+        (gl_major >= 3 && gl_minor < 3)) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "OpenGL 3.3 or higher required, but only %s was provided",
+                     gl_version ? gl_version : "<unknown>");
         return SDL_APP_FAILURE;
     }
 
@@ -202,11 +229,12 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     // I dont know why, but SDL's ABGR8 = GL_RGBA8
     SDL_Surface* converted_surf =
-        SDL_ConvertSurface(surf, SDL_PIXELFORMAT_ABGR8888);
-    SDL_DestroySurface(surf);
+        SDL_ConvertSurface(at.surf, SDL_PIXELFORMAT_ABGR8888);
+    SDL_DestroySurface(at.surf);
 
     if (!converted_surf) {
-        SDL_Log("ERROR: Could not convert surface: %s", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "Could not convert surface: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
@@ -220,8 +248,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     SDL_DestroySurface(converted_surf);
 
-    SDL_Log("Screenshot loaded successfully into SDL3 window (%dx%d)",
-            state->img_w, state->img_h);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "Screenshot loaded successfully into SDL3 window (%dx%d)",
+                state->img_w, state->img_h);
 
     *appstate = state;
     return SDL_APP_CONTINUE;

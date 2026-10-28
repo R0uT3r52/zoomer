@@ -1,3 +1,6 @@
+#include <SDL3/SDL_error.h>
+#include <SDL3/SDL_log.h>
+
 #include "capture.hpp"
 
 // windows headers
@@ -5,7 +8,7 @@
 #include <windows.h>
 #endif
 
-SDL_Surface* capture_gdi(int* out_x, int* out_y) {
+capture_attempt capture_gdi(int* out_x, int* out_y) {
     if (out_x) *out_x = 0;
     if (out_y) *out_y = 0;
 
@@ -40,12 +43,11 @@ SDL_Surface* capture_gdi(int* out_x, int* out_y) {
     surf = SDL_CreateSurface(width, height, SDL_PIXELFORMAT_ARGB8888);
 
     if (!surf) {
-        SDL_Log("ERROR: Unable to create surface in windows capture: %s",
-                SDL_GetError());
         ReleaseDC(NULL, hdc);
         DeleteDC(hDest);
         DeleteObject(hbDesktop);
-        return nullptr;
+        std::string reason = "Unable to create surface in windows capture: ";
+        return {nullptr, reason + SDL_GetError()};
     }
 
     SDL_LockSurface(surf);
@@ -53,15 +55,13 @@ SDL_Surface* capture_gdi(int* out_x, int* out_y) {
     // get pixel data from the HBITMAP into our buffer
     if (!GetDIBits(hdc, hbDesktop, 0, bm.bmHeight, surf->pixels, &bmi,
                    DIB_RGB_COLORS)) {
-        SDL_Log("ERROR: Unable to capture screenshot in capture windows");
-
         SDL_UnlockSurface(surf);
         SDL_DestroySurface(surf);
 
         ReleaseDC(NULL, hdc);
         DeleteDC(hDest);
         DeleteObject(hbDesktop);
-        return nullptr;
+        return {nullptr, "Unable to capture screenshot in capture windows"};
     }
 
     SDL_UnlockSurface(surf);
@@ -72,17 +72,21 @@ SDL_Surface* capture_gdi(int* out_x, int* out_y) {
     DeleteDC(hDest);
     DeleteObject(hbDesktop);
 
-    return surf;
+    return {surf, ""};
 }
 
-SDL_Surface* capture_screenshot(int* out_x, int* out_y) {
+capture_attempt capture_screenshot(int* out_x, int* out_y) {
     // windows implementation
 
-    SDL_Surface* result = capture_gdi(out_x, out_y);
+    capture_attempt result = capture_gdi(out_x, out_y);
     if (!result) {
-        SDL_Log("ERROR: Could not capture screenshot with GDI");
-        return nullptr;
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "Could not capture screenshot with GDI: %s",
+                     result.reason.c_str());
+        return {nullptr,
+                "Could not capture screenshot with GDI: " + result.reason};
     }
 
+    SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "GDI screen capture successful");
     return result;
 }
