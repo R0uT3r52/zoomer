@@ -84,5 +84,6 @@ capture_attempt capture_screenshot(int* out_x, int* out_y) {
         return {nullptr, "Could not capture screenshot with GDI: " + result.reason};
     }
 
+    SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "GDI screen capture successful");
     return result;
 }

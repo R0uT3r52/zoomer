@@ -3,6 +3,7 @@
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_oldnames.h>
 #include <SDL3/SDL_surface.h>
+#include <cstring>
 
 #define SDL_MAIN_USE_CALLBACKS 1
 
@@ -112,16 +113,30 @@ int init_opengl_state(app* state) {
     return 1;
 }
 
+// Main function
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 #ifndef _WIN32
     SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
 #endif
     if (!SDL_Init(SDL_INIT_VIDEO)) {
-        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Could not init SDL: %s", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not init SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    SDL_SetLogPriorities(SDL_LOG_PRIORITY_WARN);
+    bool debug_mode = false;
+
+    for (int i = 1; i < argc; i++) {
+        if (std::strcmp(argv[i], "--debug") == 0) {
+            debug_mode = true;
+            break;
+        }
+    }
+
+    if (debug_mode) {
+        SDL_SetLogPriorities(SDL_LOG_PRIORITY_DEBUG);
+    } else {
+        SDL_SetLogPriorities(SDL_LOG_PRIORITY_WARN);
+    }
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
@@ -156,7 +171,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
         SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL);
 #endif
     if (!state->window) {
-        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Could not create a window: %s", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not create a window: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
@@ -164,12 +179,12 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
     state->gl_ctx = SDL_GL_CreateContext(state->window);
     if (!state->gl_ctx) {
-        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Could not create GL context: %s", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not create GL context: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
     if (!SDL_GL_MakeCurrent(state->window, state->gl_ctx)) {
-        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "GL_MakeCurrent exited with error: %s", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "GL_MakeCurrent exited with error: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
@@ -204,7 +219,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
     SDL_DestroySurface(at.surf);
 
     if (!converted_surf) {
-        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Could not convert surface: %s", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not convert surface: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 

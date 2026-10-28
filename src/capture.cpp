@@ -150,7 +150,7 @@ capture_attempt capture_x11(int* out_x, int* out_y) {
 
     XDestroyImage(xi);
     XCloseDisplay(dpy);
-    SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "X11 capture successful (%dx%d) at offset (%d,%d)", surf->w, surf->h, bounds.x, bounds.y);
+    // SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "X11 capture successful (%dx%d) at offset (%d,%d)", surf->w, surf->h, bounds.x, bounds.y);
     return {surf, ""};
 }
 
@@ -232,7 +232,7 @@ int sdbus_screenshot(std::string& path_to_file, std::string& reason) {
     connection->enterEventLoop();
 
     std::string uri = path_future.get();
-    if (uri == "empty_path") {
+    if (uri.empty() || uri == "empty_path") {
         reason = "file uri path is empty";
         return 1;
     }
@@ -291,7 +291,6 @@ capture_attempt capture_wayland_commands(int* out_x, int* out_y) {
             std::filesystem::remove(temp_file);
 
             if (surf) {
-                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Wayland capture successful via command");
                 return {surf, ""};
             }
         }
@@ -339,89 +338,51 @@ capture_attempt capture_screenshot(int* out_x, int* out_y) {
     Session session = detect_session();
     std::string fld;
 
+    struct CaptureMethod{
+        const char* name;
+        capture_attempt (*func)(int*, int*);
+    };
+
+    std::vector<CaptureMethod> methods;
+
     if (session == Session::Wayland) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Attempting Wayland screen capture");
+        SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Attempting wayland screen capture");
 
-        capture_attempt r = capture_wayland(out_x, out_y);
-
-        if (r) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Wayland] screen capture via Dbus successful");
-            return r;
-        }
-        fld += ("wayland: " + r.reason + " | ");
-
-        r = capture_wayland_commands(out_x, out_y);
-        if (r) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Wayland] screen capture via commands successful");
-            return r;
-        }
-        fld += ("wayland_commands: " + r.reason + " | ");
-
-        r = capture_x11(out_x, out_y);
-        if (r) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Wayland] screen capture via X11 fallback successful");
-            return r;
-        }
-        fld += ("x11: " + r.reason);
-
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "[Wayland] Screen capture failed: %s", fld.c_str());
-
-        return {nullptr, fld};
-
+        methods = {{"wayland_dbus", capture_wayland},
+                   {"wayland_commands", capture_wayland_commands},
+                   {"x11_fallback", capture_x11}
+        };
     } else if (session == Session::X11) {
         SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Attempting X11 screen capture");
 
-        capture_attempt r = capture_x11(out_x, out_y);
-
-        if (r) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[X11] screen capture successful");
-            return r;
-        }
-        fld += ("X11: " + r.reason + " | ");
-
-        r = capture_wayland(out_x, out_y);
-        if (r) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[X11] screen capture via dbus successful");
-            return r;
-        }
-        fld += ("wayland: " + r.reason + " | ");
-
-        r = capture_wayland_commands(out_x, out_y);
-        if (r) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[X11] screen capture via wayland_commands successful");
-            return r;
-        }
-        fld += ("wayland_commands: " + r.reason);
-
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "[X11] Screen capture failed: %s", fld.c_str());
-
-        return {nullptr, fld};
+        methods = {{"x11", capture_x11},
+                   {"wayland_dbus", capture_wayland},
+                   {"wayland_commands", capture_wayland_commands}
+        };
     } else {
-        SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Session unknown, trying Wayland capture then X11 capture");
+        SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Session: Unknown");
 
-        capture_attempt r = capture_wayland(out_x, out_y);
-        if (r) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Unknown] Wayland dbus capture successful");
-            return r;
-        }
-        fld += ("wayland: " + r.reason + " | ");
-
-        r = capture_wayland_commands(out_x, out_y);
-        if (r) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Unknown] Wayland commands capture successful");
-            return r;
-        }
-        fld += ("wayland_commands: " + r.reason + " | ");
-
-        r = capture_x11(out_x, out_y);
-        if (r) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[Unknown] X11 native capture successful");
-            return r;
-        }
-        fld += ("X11: " + r.reason);
-
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "[Unknown] Screen capture failed: %s", fld.c_str());
-        return {nullptr, fld};
+        methods = {{"wayland_dbus", capture_wayland},
+                   {"x11", capture_x11},
+                   {"wayland_commands", capture_wayland_commands}
+        };
     }
 
+
+    for (const auto& method : methods) {
+        capture_attempt r = method.func(out_x, out_y);
+        if (r) {
+            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Capture with %s was successful", method.name);
+            return r;
+        }
+        if(!fld.empty()) {
+            fld += " | ";
+        }
+
+        fld += std::string(method.name) + ": " + r.reason;
+    }
+
+
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Screen capture failed: %s", fld.c_str());
+    return {nullptr, fld};
 }
