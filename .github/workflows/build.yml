@@ -9,6 +9,19 @@ permissions:
   contents: write
 
 jobs:
+  code-style-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt install -y clang-format-14
+
+      - name: Run clang-format check
+        run: clang-format -n -Werror src/*.?pp && clang-format -n tools/*.?pp
+
   build-and-release:
     runs-on: ubuntu-latest
     steps:
@@ -33,6 +46,7 @@ jobs:
           files: out/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-and-release-windows:
     runs-on: windows-latest
     env:

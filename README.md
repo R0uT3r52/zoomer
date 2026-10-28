@@ -111,6 +111,8 @@ Point the hotkey to the absolute path of the `zoomer` binary or the downloaded A
 
 When launched, Zoomer captures a snapshot of the current screen and opens in a fullscreen window.
 
+To see debug logs, use `--debug` argument: `./Zoomer-x86_64.AppImage --debug`.
+
 ### Controls
 
 | Input | Action |
