@@ -10,10 +10,10 @@
 #include <filesystem>
 #include <string>
 
-struct capture_attempt{
-  SDL_Surface *surf = nullptr;
-  std::string reason;
-  explicit operator bool() const { return surf != nullptr; }
+struct capture_attempt {
+    SDL_Surface* surf = nullptr;
+    std::string reason;
+    explicit operator bool() const { return surf != nullptr; }
 };
 capture_attempt capture_screenshot(int* out_x = nullptr, int* out_y = nullptr);
 std::string uri_to_path(const std::string uri);

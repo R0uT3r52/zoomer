@@ -1,5 +1,6 @@
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_log.h>
+
 #include "capture.hpp"
 
 // windows headers
@@ -54,7 +55,6 @@ capture_attempt capture_gdi(int* out_x, int* out_y) {
     // get pixel data from the HBITMAP into our buffer
     if (!GetDIBits(hdc, hbDesktop, 0, bm.bmHeight, surf->pixels, &bmi,
                    DIB_RGB_COLORS)) {
-
         SDL_UnlockSurface(surf);
         SDL_DestroySurface(surf);
 
@@ -80,8 +80,11 @@ capture_attempt capture_screenshot(int* out_x, int* out_y) {
 
     capture_attempt result = capture_gdi(out_x, out_y);
     if (!result) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not capture screenshot with GDI: %s", result.reason.c_str());
-        return {nullptr, "Could not capture screenshot with GDI: " + result.reason};
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "Could not capture screenshot with GDI: %s",
+                     result.reason.c_str());
+        return {nullptr,
+                "Could not capture screenshot with GDI: " + result.reason};
     }
 
     SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "GDI screen capture successful");

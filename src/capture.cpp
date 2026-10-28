@@ -9,7 +9,6 @@
 #include <sdbus-c++/IProxy.h>
 #include <sdbus-c++/Types.h>
 #include <sdbus-c++/sdbus-c++.h>
-#include <string>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <chrono>
@@ -18,12 +17,12 @@
 #include <cstring>
 #include <filesystem>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "stb/stb_image.h"
 
 enum class Session { X11, Wayland, Unknown };
-
 
 Session detect_session();
 int sdbus_screenshot(std::string& path_to_file, std::string& reason);
@@ -101,7 +100,8 @@ capture_attempt capture_x11(int* out_x, int* out_y) {
     if (xi->bits_per_pixel != 32 && xi->bits_per_pixel != 24) {
         XDestroyImage(xi);
         XCloseDisplay(dpy);
-        reason = "X11 unsupported color depth: " + std::to_string(xi->bits_per_pixel) + "bpp";
+        reason = "X11 unsupported color depth: " +
+                 std::to_string(xi->bits_per_pixel) + "bpp";
         return {nullptr, reason};
     }
 
@@ -150,7 +150,9 @@ capture_attempt capture_x11(int* out_x, int* out_y) {
 
     XDestroyImage(xi);
     XCloseDisplay(dpy);
-    // SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "X11 capture successful (%dx%d) at offset (%d,%d)", surf->w, surf->h, bounds.x, bounds.y);
+    // SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION,
+    //              "X11 capture successful (%dx%d) at offset (%d,%d)", surf->w,
+    //              surf->h, bounds.x, bounds.y);
     return {surf, ""};
 }
 
@@ -164,7 +166,7 @@ std::string uri_to_path(const std::string uri) {
 
     for (int i = 0; i < uri.length(); i++) {
         if (uri[i] == '%') {
-            char val = std::stoi(uri.substr(i+1, 2), nullptr, 16);
+            char val = std::stoi(uri.substr(i + 1, 2), nullptr, 16);
             correct_path += val;
             i += 2;
         } else {
@@ -218,12 +220,14 @@ int sdbus_screenshot(std::string& path_to_file, std::string& reason) {
                     std::string file_path = results["uri"].get<std::string>();
                     promise.set_value(file_path);
                 } else {
-                    SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "No file path (uri) were observed");
+                    SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION,
+                                 "No file path (uri) were observed");
                     promise.set_value("empty_path");
                 }
             } else {
                 promise.set_value("user_cancelled");
-                SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Looks like user cancelled the request");
+                SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION,
+                             "Looks like user cancelled the request");
             }
 
             connection->leaveEventLoop();
@@ -297,7 +301,7 @@ capture_attempt capture_wayland_commands(int* out_x, int* out_y) {
     }
 
     if (reason.empty()) {
-        reason  = "unable to call screenshot utilities";
+        reason = "unable to call screenshot utilities";
     }
     return {nullptr, reason};
 }
@@ -309,13 +313,13 @@ capture_attempt capture_wayland(int* out_x, int* out_y) {
     std::string file_path;
     std::string reason = "";
 
-
     if (sdbus_screenshot(file_path, reason) != 0) {
         return {nullptr, reason};
     }
 
     int width, height, channels;
-    unsigned char* data = stbi_load(file_path.c_str(), &width, &height, &channels, 4);
+    unsigned char* data =
+        stbi_load(file_path.c_str(), &width, &height, &channels, 4);
 
     SDL_Surface* surf = nullptr;
     if (data) {
@@ -338,7 +342,7 @@ capture_attempt capture_screenshot(int* out_x, int* out_y) {
     Session session = detect_session();
     std::string fld;
 
-    struct CaptureMethod{
+    struct CaptureMethod {
         const char* name;
         capture_attempt (*func)(int*, int*);
     };
@@ -346,43 +350,42 @@ capture_attempt capture_screenshot(int* out_x, int* out_y) {
     std::vector<CaptureMethod> methods;
 
     if (session == Session::Wayland) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Attempting wayland screen capture");
+        SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION,
+                     "Attempting wayland screen capture");
 
         methods = {{"wayland_dbus", capture_wayland},
                    {"wayland_commands", capture_wayland_commands},
-                   {"x11_fallback", capture_x11}
-        };
+                   {"x11_fallback", capture_x11}};
     } else if (session == Session::X11) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Attempting X11 screen capture");
+        SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION,
+                     "Attempting X11 screen capture");
 
         methods = {{"x11", capture_x11},
                    {"wayland_dbus", capture_wayland},
-                   {"wayland_commands", capture_wayland_commands}
-        };
+                   {"wayland_commands", capture_wayland_commands}};
     } else {
         SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Session: Unknown");
 
         methods = {{"wayland_dbus", capture_wayland},
                    {"x11", capture_x11},
-                   {"wayland_commands", capture_wayland_commands}
-        };
+                   {"wayland_commands", capture_wayland_commands}};
     }
-
 
     for (const auto& method : methods) {
         capture_attempt r = method.func(out_x, out_y);
         if (r) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Capture with %s was successful", method.name);
+            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION,
+                         "Capture with %s was successful", method.name);
             return r;
         }
-        if(!fld.empty()) {
+        if (!fld.empty()) {
             fld += " | ";
         }
 
         fld += std::string(method.name) + ": " + r.reason;
     }
 
-
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Screen capture failed: %s", fld.c_str());
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Screen capture failed: %s",
+                 fld.c_str());
     return {nullptr, fld};
 }
